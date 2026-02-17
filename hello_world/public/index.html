@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>MongoDB Table</title>
+    <style>
+        table {
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+        td, th {
+            border: 1px solid black;
+            padding: 5px 10px;
+        }
+    </style>
+</head>
+<body>
+
+<h2>Добавить текст</h2>
+<input id="textInput" type="text">
+<button onclick="sendText()">Отправить</button>
+
+<h2>Таблица</h2>
+<table>
+    <thead>
+    <tr>
+        <th>№</th>
+        <th>Текст</th>
+    </tr>
+    </thead>
+    <tbody id="tableBody"></tbody>
+</table>
+
+<script>
+    async function loadTable() {
+        const res = await fetch("/api/texts");
+        const data = await res.json();
+
+        const tbody = document.getElementById("tableBody");
+        tbody.innerHTML = "";
+
+        data.forEach((item, index) => {
+            const row = document.createElement("tr");
+            row.innerHTML = `
+            <td>${index + 1}</td>
+            <td>${item.text}</td>
+        `;
+            tbody.appendChild(row);
+        });
+    }
+
+    async function sendText() {
+        const input = document.getElementById("textInput");
+        const text = input.value.trim();
+        if (!text) return;
+
+        await fetch("/api/texts", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ text }),
+        });
+
+        input.value = "";
+        loadTable();
+    }
+
+    // загрузка при старте
+    loadTable();
+</script>
+
+</body>
+</html>
