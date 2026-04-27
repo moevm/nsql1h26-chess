@@ -46,3 +46,26 @@ db.createCollection("players", {
     }
   }
 });
+
+// Schema validation для games
+db.createCollection("games", {
+  validator: {
+    $jsonSchema: {
+      bsonType: "object",
+      required: ["mode", "status", "player1_id", "player2_id", "created_at", "updated_at", "moves", "status_history"],
+      properties: {
+        mode: { enum: ["hotseat", "bot"] },
+        status: { bsonType: "string" },
+        player1_id: { bsonType: "objectId" },
+        player2_id: { bsonType: "objectId" },
+        winner_id: { bsonType: ["objectId", "null"] },
+        result: { bsonType: ["string", "null"] },
+        comment: { bsonType: "string" },
+        created_at: { bsonType: "date" },
+        updated_at: { bsonType: "date" },
+        moves: { bsonType: "array" },
+        status_history: { bsonType: "array" }
+      }
+    }
+  }
+});
