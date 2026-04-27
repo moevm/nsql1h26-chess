@@ -1,0 +1,52 @@
+version: '3.8'
+
+services:
+  db:
+    image: mongo:7
+    container_name: circular-chess-db
+    environment:
+      MONGO_INITDB_DATABASE: circular_chess
+    volumes:
+      - mongo-data:/data/db
+      - ./mongo-init/init.js:/docker-entrypoint-initdb.d/init.js:ro
+    ports:
+      - "27017:27017"
+    networks:
+      - app-network
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: circular-chess-backend
+    environment:
+      MONGO_URI: mongodb://db:27017/circular_chess
+      JWT_SECRET: ${JWT_SECRET}
+      PORT: 3000
+    ports:
+      - "3000:3000"
+    depends_on:
+      - db
+    networks:
+      - app-network
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: circular-chess-frontend
+    ports:
+      - "8080:80"
+    depends_on:
+      - backend
+    networks:
+      - app-network
+    restart: unless-stopped
+
+volumes:
+  mongo-data:
+
+networks:
+  app-network:
+    driver: bridge
