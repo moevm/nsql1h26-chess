@@ -69,3 +69,52 @@ db.createCollection("games", {
     }
   }
 });
+
+db.players.createIndex({ type: 1, username: 1 }, { sparse: true });
+db.players.createIndex({ type: 1, email: 1 }, { sparse: true });
+db.players.createIndex({ type: 1, name: 1 }, { sparse: true });
+db.players.createIndex({ type: 1, status: 1 });
+db.games.createIndex({ status: 1, mode: 1 });
+db.games.createIndex({ player1_id: 1 });
+db.games.createIndex({ player2_id: 1 });
+db.games.createIndex({ created_at: -1 });
+
+var now = new Date();
+
+// тестовые даныне 
+const player1Id = ObjectId();
+db.players.insertOne({
+  _id: player1Id,
+  type: "player",
+  username: "player1",
+  email: "player@chess.ru",
+  password_hash: "123456",
+  status: "active",
+  comment: "Первый тестовый игрок",
+  created_at: now,
+  updated_at: now,
+  stats: { wins: NumberInt(25), losses: NumberInt(18), draws: NumberInt(7), total_games: NumberInt(50), elo: NumberInt(0) },
+  status_history: [{
+    changed_at: now,
+    old_status: null,
+    new_status: "active",
+    changed_by: null,
+    reason: "Регистрация"
+  }]
+});
+
+var bot1Id = ObjectId();
+db.players.insertOne({
+  _id: bot1Id,
+  type: "bot",
+  name: "TEST",
+  api_url: "https://test",
+  status: "active",
+  comment: "Тестовый бот",
+  created_at: now,
+  updated_at: now,
+  stats: { wins: NumberInt(120), losses: NumberInt(45), draws: NumberInt(15), total_games: NumberInt(180), elo: NumberInt(0)},
+  status_history: [
+    { changed_at: new Date(now.getTime() - 86400000), old_status: null, new_status: "draft", changed_by: player1Id, reason: "Создание бота" },
+  ]
+});
