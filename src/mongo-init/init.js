@@ -81,7 +81,9 @@ db.games.createIndex({ created_at: -1 });
 
 var now = new Date();
 
-// админ
+// Игроки==========================================================
+
+// Админ
 const adminId = ObjectId();
 db.players.insertOne({
   _id: adminId,
@@ -97,7 +99,6 @@ db.players.insertOne({
   status_history: [{ changed_at: new Date(now.getTime() - 30 * 86400000), old_status: null, new_status: "active", changed_by: null, reason: "Регистрация" }]
 });
 
-// игрок
 const player1Id = ObjectId();
 db.players.insertOne({
   _id: player1Id,
@@ -113,7 +114,101 @@ db.players.insertOne({
   status_history: [{ changed_at: new Date(now.getTime() - 20 * 86400000), old_status: null, new_status: "active", changed_by: null, reason: "Регистрация" }]
 });
 
-// бот
+const player2Id = ObjectId();
+db.players.insertOne({
+  _id: player2Id,
+  type: "player",
+  username: "ivanov",
+  email: "ivanov@chess.ru",
+  password_hash: "__SEED__",
+  status: "active",
+  comment: "Иванов Алексей, опытный игрок",
+  created_at: new Date(now.getTime() - 15 * 86400000),
+  updated_at: new Date(now.getTime() - 15 * 86400000),
+  stats: { wins: NumberInt(30), losses: NumberInt(12), draws: NumberInt(8), total_games: NumberInt(50), elo: NumberInt(1650) },
+  status_history: [{ changed_at: new Date(now.getTime() - 15 * 86400000), old_status: null, new_status: "active", changed_by: null, reason: "Регистрация" }]
+});
+
+const player3Id = ObjectId();
+db.players.insertOne({
+  _id: player3Id,
+  type: "player",
+  username: "petrova",
+  email: "petrova@chess.ru",
+  password_hash: "__SEED__",
+  status: "active",
+  comment: "Петрова Мария",
+  created_at: new Date(now.getTime() - 12 * 86400000),
+  updated_at: new Date(now.getTime() - 12 * 86400000),
+  stats: { wins: NumberInt(15), losses: NumberInt(20), draws: NumberInt(5), total_games: NumberInt(40), elo: NumberInt(1400) },
+  status_history: [{ changed_at: new Date(now.getTime() - 12 * 86400000), old_status: null, new_status: "active", changed_by: null, reason: "Регистрация" }]
+});
+
+const player4Id = ObjectId();
+db.players.insertOne({
+  _id: player4Id,
+  type: "player",
+  username: "sidorov",
+  email: "sidorov@chess.ru",
+  password_hash: "__SEED__",
+  status: "active",
+  comment: "Сидоров Николай, новичок",
+  created_at: new Date(now.getTime() - 8 * 86400000),
+  updated_at: new Date(now.getTime() - 8 * 86400000),
+  stats: { wins: NumberInt(5), losses: NumberInt(8), draws: NumberInt(2), total_games: NumberInt(15), elo: NumberInt(1200) },
+  status_history: [{ changed_at: new Date(now.getTime() - 8 * 86400000), old_status: null, new_status: "active", changed_by: null, reason: "Регистрация" }]
+});
+
+const player5Id = ObjectId();
+db.players.insertOne({
+  _id: player5Id,
+  type: "player",
+  username: "kuznetsov",
+  email: "kuznetsov@chess.ru",
+  password_hash: "__SEED__",
+  status: "banned",
+  comment: "Нарушение правил",
+  created_at: new Date(now.getTime() - 25 * 86400000),
+  updated_at: new Date(now.getTime() - 3 * 86400000),
+  stats: { wins: NumberInt(10), losses: NumberInt(5), draws: NumberInt(1), total_games: NumberInt(16), elo: NumberInt(1300) },
+  status_history: [
+    { changed_at: new Date(now.getTime() - 25 * 86400000), old_status: null, new_status: "active", changed_by: null, reason: "Регистрация" },
+    { changed_at: new Date(now.getTime() - 3 * 86400000), old_status: "active", new_status: "banned", changed_by: adminId, reason: "Нарушение правил сообщества" }
+  ]
+});
+
+const player6Id = ObjectId();
+db.players.insertOne({
+  _id: player6Id,
+  type: "player",
+  username: "smirnova",
+  email: "smirnova@chess.ru",
+  password_hash: "__SEED__",
+  status: "active",
+  comment: "Смирнова Анна, мастер спорта",
+  created_at: new Date(now.getTime() - 40 * 86400000),
+  updated_at: new Date(now.getTime() - 40 * 86400000),
+  stats: { wins: NumberInt(60), losses: NumberInt(15), draws: NumberInt(12), total_games: NumberInt(87), elo: NumberInt(2000) },
+  status_history: [{ changed_at: new Date(now.getTime() - 40 * 86400000), old_status: null, new_status: "active", changed_by: null, reason: "Регистрация" }]
+});
+
+const player7Id = ObjectId();
+db.players.insertOne({
+  _id: player7Id,
+  type: "player",
+  username: "fedorov",
+  email: "fedorov@chess.ru",
+  password_hash: "__SEED__",
+  status: "active",
+  comment: "Фёдоров Дмитрий",
+  created_at: new Date(now.getTime() - 5 * 86400000),
+  updated_at: new Date(now.getTime() - 5 * 86400000),
+  stats: { wins: NumberInt(3), losses: NumberInt(2), draws: NumberInt(0), total_games: NumberInt(5), elo: NumberInt(1100) },
+  status_history: [{ changed_at: new Date(now.getTime() - 5 * 86400000), old_status: null, new_status: "active", changed_by: null, reason: "Регистрация" }]
+});
+
+// Боты==========================================================
+
 const bot1Id = ObjectId();
 db.players.insertOne({
   _id: bot1Id,
@@ -131,7 +226,101 @@ db.players.insertOne({
   ]
 });
 
-// игра между игроком и ботом
+const bot2Id = ObjectId();
+db.players.insertOne({
+  _id: bot2Id,
+  type: "bot",
+  name: "GreedyBot",
+  api_url: "http://bots.example.com/greedy",
+  status: "active",
+  comment: "Жадная стратегия — берёт любую фигуру при возможности",
+  created_at: new Date(now.getTime() - 20 * 86400000),
+  updated_at: new Date(now.getTime() - 20 * 86400000),
+  stats: { wins: NumberInt(45), losses: NumberInt(40), draws: NumberInt(10), total_games: NumberInt(95), elo: NumberInt(1100) },
+  status_history: [
+    { changed_at: new Date(now.getTime() - 20 * 86400000), old_status: null, new_status: "draft", changed_by: adminId, reason: "Создание бота" },
+    { changed_at: new Date(now.getTime() - 19 * 86400000), old_status: "draft", new_status: "testing", changed_by: adminId, reason: "Начало тестирования" },
+    { changed_at: new Date(now.getTime() - 18 * 86400000), old_status: "testing", new_status: "active", changed_by: adminId, reason: "Тестирование пройдено" }
+  ]
+});
+
+const bot3Id = ObjectId();
+db.players.insertOne({
+  _id: bot3Id,
+  type: "bot",
+  name: "MinimaxBot",
+  api_url: "http://bots.example.com/minimax",
+  status: "active",
+  comment: "Алгоритм минимакс, глубина 4",
+  created_at: new Date(now.getTime() - 18 * 86400000),
+  updated_at: new Date(now.getTime() - 18 * 86400000),
+  stats: { wins: NumberInt(70), losses: NumberInt(20), draws: NumberInt(15), total_games: NumberInt(105), elo: NumberInt(1600) },
+  status_history: [
+    { changed_at: new Date(now.getTime() - 18 * 86400000), old_status: null, new_status: "draft", changed_by: adminId, reason: "Создание бота" },
+    { changed_at: new Date(now.getTime() - 17 * 86400000), old_status: "draft", new_status: "active", changed_by: adminId, reason: "Готов" }
+  ]
+});
+
+const bot4Id = ObjectId();
+db.players.insertOne({
+  _id: bot4Id,
+  type: "bot",
+  name: "AlphaBot",
+  api_url: "http://bots.example.com/alpha",
+  status: "testing",
+  comment: "Нейросеть, в стадии тестирования",
+  created_at: new Date(now.getTime() - 5 * 86400000),
+  updated_at: new Date(now.getTime() - 2 * 86400000),
+  stats: { wins: NumberInt(3), losses: NumberInt(2), draws: NumberInt(0), total_games: NumberInt(5), elo: NumberInt(0) },
+  status_history: [
+    { changed_at: new Date(now.getTime() - 5 * 86400000), old_status: null, new_status: "draft", changed_by: adminId, reason: "Создание" },
+    { changed_at: new Date(now.getTime() - 2 * 86400000), old_status: "draft", new_status: "testing", changed_by: adminId, reason: "Начало тестирования" }
+  ]
+});
+
+const bot5Id = ObjectId();
+db.players.insertOne({
+  _id: bot5Id,
+  type: "bot",
+  name: "DisabledBot",
+  api_url: "http://bots.example.com/old",
+  status: "disabled",
+  comment: "Устаревший бот",
+  created_at: new Date(now.getTime() - 60 * 86400000),
+  updated_at: new Date(now.getTime() - 30 * 86400000),
+  stats: { wins: NumberInt(20), losses: NumberInt(30), draws: NumberInt(5), total_games: NumberInt(55), elo: NumberInt(950) },
+  status_history: [
+    { changed_at: new Date(now.getTime() - 60 * 86400000), old_status: null, new_status: "draft", changed_by: adminId, reason: "Создание" },
+    { changed_at: new Date(now.getTime() - 55 * 86400000), old_status: "draft", new_status: "active", changed_by: adminId, reason: "Активация" },
+    { changed_at: new Date(now.getTime() - 30 * 86400000), old_status: "active", new_status: "disabled", changed_by: adminId, reason: "Устарел" }
+  ]
+});
+
+// Игры==========================================================
+
+db.games.insertOne({
+  mode: "hotseat",
+  status: "completed",
+  player1_id: player1Id,
+  player2_id: player2Id,
+  winner_id: player2Id,
+  result: "checkmate",
+  comment: "Тестовая партия 1",
+  created_at: new Date(now.getTime() - 10 * 86400000),
+  updated_at: new Date(now.getTime() - 10 * 86400000),
+  moves: [
+    { move_number: NumberInt(1), player_id: player1Id, from_sq: "e2", to_sq: "e4", piece: "pawn", captured: null, timestamp: new Date(now.getTime() - 10 * 86400000) },
+    { move_number: NumberInt(2), player_id: player2Id, from_sq: "e7", to_sq: "e5", piece: "pawn", captured: null, timestamp: new Date(now.getTime() - 10 * 86400000 + 60000) },
+    { move_number: NumberInt(3), player_id: player1Id, from_sq: "f1", to_sq: "c4", piece: "bishop", captured: null, timestamp: new Date(now.getTime() - 10 * 86400000 + 120000) },
+    { move_number: NumberInt(4), player_id: player2Id, from_sq: "d8", to_sq: "h4", piece: "queen", captured: null, timestamp: new Date(now.getTime() - 10 * 86400000 + 180000) }
+  ],
+  status_history: [
+    { changed_at: new Date(now.getTime() - 10 * 86400000), old_status: null, new_status: "created", changed_by: player1Id, reason: "Создание партии" },
+    { changed_at: new Date(now.getTime() - 10 * 86400000 + 1000), old_status: "created", new_status: "in_progress", changed_by: player1Id, reason: "Старт" },
+    { changed_at: new Date(now.getTime() - 10 * 86400000 + 200000), old_status: "in_progress", new_status: "completed", changed_by: player2Id, reason: "Мат" }
+  ]
+});
+
 db.games.insertOne({
   mode: "bot",
   status: "completed",
@@ -150,5 +339,130 @@ db.games.insertOne({
     { changed_at: new Date(now.getTime() - 9 * 86400000), old_status: null, new_status: "created", changed_by: player1Id, reason: "Создание партии" },
     { changed_at: new Date(now.getTime() - 9 * 86400000 + 100), old_status: "created", new_status: "in_progress", changed_by: player1Id, reason: "Старт" },
     { changed_at: new Date(now.getTime() - 9 * 86400000 + 100000), old_status: "in_progress", new_status: "completed", changed_by: player1Id, reason: "Мат" }
+  ]
+});
+
+db.games.insertOne({
+  mode: "hotseat",
+  status: "completed",
+  player1_id: player3Id,
+  player2_id: player4Id,
+  winner_id: null,
+  result: "draw",
+  comment: "Ничья по соглашению",
+  created_at: new Date(now.getTime() - 7 * 86400000),
+  updated_at: new Date(now.getTime() - 7 * 86400000),
+  moves: [
+    { move_number: NumberInt(1), player_id: player3Id, from_sq: "c2", to_sq: "c4", piece: "pawn", captured: null, timestamp: new Date(now.getTime() - 7 * 86400000) },
+    { move_number: NumberInt(2), player_id: player4Id, from_sq: "e7", to_sq: "e6", piece: "pawn", captured: null, timestamp: new Date(now.getTime() - 7 * 86400000 + 30000) }
+  ],
+  status_history: [
+    { changed_at: new Date(now.getTime() - 7 * 86400000), old_status: null, new_status: "created", changed_by: player3Id, reason: "Создание" },
+    { changed_at: new Date(now.getTime() - 7 * 86400000 + 100), old_status: "created", new_status: "in_progress", changed_by: player3Id, reason: "Старт" },
+    { changed_at: new Date(now.getTime() - 7 * 86400000 + 50000), old_status: "in_progress", new_status: "completed", changed_by: player3Id, reason: "Ничья по соглашению" }
+  ]
+});
+
+db.games.insertOne({
+  mode: "bot",
+  status: "completed",
+  player1_id: player2Id,
+  player2_id: bot2Id,
+  winner_id: bot2Id,
+  result: "checkmate",
+  comment: "Игра с GreedyBot",
+  created_at: new Date(now.getTime() - 6 * 86400000),
+  updated_at: new Date(now.getTime() - 6 * 86400000),
+  moves: [
+    { move_number: NumberInt(1), player_id: player2Id, from_sq: "e2", to_sq: "e4", piece: "pawn", captured: null, timestamp: new Date(now.getTime() - 6 * 86400000) },
+    { move_number: NumberInt(2), player_id: bot2Id, from_sq: "d7", to_sq: "d5", piece: "pawn", captured: null, timestamp: new Date(now.getTime() - 6 * 86400000 + 2000) },
+    { move_number: NumberInt(3), player_id: player2Id, from_sq: "e4", to_sq: "d5", piece: "pawn", captured: "pawn", timestamp: new Date(now.getTime() - 6 * 86400000 + 4000) }
+  ],
+  status_history: [
+    { changed_at: new Date(now.getTime() - 6 * 86400000), old_status: null, new_status: "created", changed_by: player2Id, reason: "Создание" },
+    { changed_at: new Date(now.getTime() - 6 * 86400000 + 100), old_status: "created", new_status: "in_progress", changed_by: player2Id, reason: "Старт" },
+    { changed_at: new Date(now.getTime() - 6 * 86400000 + 80000), old_status: "in_progress", new_status: "completed", changed_by: player2Id, reason: "Мат" }
+  ]
+});
+
+db.games.insertOne({
+  mode: "hotseat",
+  status: "abandoned",
+  player1_id: player1Id,
+  player2_id: player3Id,
+  winner_id: null,
+  result: null,
+  comment: "Партия брошена",
+  created_at: new Date(now.getTime() - 5 * 86400000),
+  updated_at: new Date(now.getTime() - 5 * 86400000 + 50000),
+  moves: [
+    { move_number: NumberInt(1), player_id: player1Id, from_sq: "a2", to_sq: "a4", piece: "pawn", captured: null, timestamp: new Date(now.getTime() - 5 * 86400000) }
+  ],
+  status_history: [
+    { changed_at: new Date(now.getTime() - 5 * 86400000), old_status: null, new_status: "created", changed_by: player1Id, reason: "Создание" },
+    { changed_at: new Date(now.getTime() - 5 * 86400000 + 100), old_status: "created", new_status: "in_progress", changed_by: player1Id, reason: "Старт" },
+    { changed_at: new Date(now.getTime() - 5 * 86400000 + 50000), old_status: "in_progress", new_status: "abandoned", changed_by: player1Id, reason: "Игрок покинул партию" }
+  ]
+});
+
+db.games.insertOne({
+  mode: "bot",
+  status: "completed",
+  player1_id: player6Id,
+  player2_id: bot3Id,
+  winner_id: player6Id,
+  result: "checkmate",
+  comment: "Сильный игрок vs MinimaxBot",
+  created_at: new Date(now.getTime() - 4 * 86400000),
+  updated_at: new Date(now.getTime() - 4 * 86400000),
+  moves: [
+    { move_number: NumberInt(1), player_id: player6Id, from_sq: "e2", to_sq: "e4", piece: "pawn", captured: null, timestamp: new Date(now.getTime() - 4 * 86400000) },
+    { move_number: NumberInt(2), player_id: bot3Id, from_sq: "c7", to_sq: "c5", piece: "pawn", captured: null, timestamp: new Date(now.getTime() - 4 * 86400000 + 3000) }
+  ],
+  status_history: [
+    { changed_at: new Date(now.getTime() - 4 * 86400000), old_status: null, new_status: "created", changed_by: player6Id, reason: "Создание" },
+    { changed_at: new Date(now.getTime() - 4 * 86400000 + 100), old_status: "created", new_status: "in_progress", changed_by: player6Id, reason: "Старт" },
+    { changed_at: new Date(now.getTime() - 4 * 86400000 + 200000), old_status: "in_progress", new_status: "completed", changed_by: player6Id, reason: "Мат" }
+  ]
+});
+
+db.games.insertOne({
+  mode: "hotseat",
+  status: "in_progress",
+  player1_id: player7Id,
+  player2_id: player4Id,
+  winner_id: null,
+  result: null,
+  comment: "Текущая партия",
+  created_at: new Date(now.getTime() - 1 * 86400000),
+  updated_at: new Date(now.getTime() - 1 * 86400000 + 120000),
+  moves: [
+    { move_number: NumberInt(1), player_id: player7Id, from_sq: "d2", to_sq: "d4", piece: "pawn", captured: null, timestamp: new Date(now.getTime() - 1 * 86400000) },
+    { move_number: NumberInt(2), player_id: player4Id, from_sq: "d7", to_sq: "d5", piece: "pawn", captured: null, timestamp: new Date(now.getTime() - 1 * 86400000 + 60000) },
+    { move_number: NumberInt(3), player_id: player7Id, from_sq: "c1", to_sq: "f4", piece: "bishop", captured: null, timestamp: new Date(now.getTime() - 1 * 86400000 + 120000) }
+  ],
+  status_history: [
+    { changed_at: new Date(now.getTime() - 1 * 86400000), old_status: null, new_status: "created", changed_by: player7Id, reason: "Создание" },
+    { changed_at: new Date(now.getTime() - 1 * 86400000 + 100), old_status: "created", new_status: "in_progress", changed_by: player7Id, reason: "Старт" }
+  ]
+});
+
+db.games.insertOne({
+  mode: "bot",
+  status: "completed",
+  player1_id: player1Id,
+  player2_id: bot3Id,
+  winner_id: null,
+  result: "stalemate",
+  comment: "Пат с MinimaxBot",
+  created_at: new Date(now.getTime() - 3 * 86400000),
+  updated_at: new Date(now.getTime() - 3 * 86400000),
+  moves: [
+    { move_number: NumberInt(1), player_id: player1Id, from_sq: "h2", to_sq: "h4", piece: "pawn", captured: null, timestamp: new Date(now.getTime() - 3 * 86400000) }
+  ],
+  status_history: [
+    { changed_at: new Date(now.getTime() - 3 * 86400000), old_status: null, new_status: "created", changed_by: player1Id, reason: "Создание" },
+    { changed_at: new Date(now.getTime() - 3 * 86400000 + 100), old_status: "created", new_status: "in_progress", changed_by: player1Id, reason: "Старт" },
+    { changed_at: new Date(now.getTime() - 3 * 86400000 + 300000), old_status: "in_progress", new_status: "completed", changed_by: player1Id, reason: "Пат" }
   ]
 });
