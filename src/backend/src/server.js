@@ -645,3 +645,317 @@ app.delete('/api/bots/:id', authMiddleware, async (req, res) => {
     res.status(500).json({ error: 'Ошибка сервера' });
   }
 });
+
+// игры
+app.get('/api/games', optionalAuth, async (req, res) => {
+  try {
+    const {
+      mode, status, result, comment,
+      player_name,
+      created_from, created_to,
+      moves_min, moves_max,
+      sort_by, sort_dir,
+      page, limit: lim
+    } = req.query;
+
+    const filter = {};
+
+    if (mode) filter.mode = mode;
+    if (status) filter.status = status;
+    if (result) filter.result = result;
+    if (comment) filter.comment = { $regex: comment, $options: 'i' };
+
+    if (created_from || created_to) {
+      filter.created_at = {};
+      if (created_from) filter.created_at.$gte = new Date(created_from);
+      if (created_to) filter.created_at.$lte = new Date(created_to + 'T23:59:59Z');
+    }
+
+    // Поиск по имени игрока — нужно сначала найти ID
+    if (player_name) {
+      const matchingPlayers = await db.collection('players').find({
+        $or: [
+          { type: 'player', username: { $regex: player_name, $options: 'i' } },
+          { type: 'bot', name: { $regex: player_name, $options: 'i' } }
+        ]
+      }).project({ _id: 1 }).toArray();
+
+      const ids = matchingPlayers.map(p => p._id);
+      if (ids.length === 0) {
+        return res.json({
+          data: [],
+          pagination: { page: 1, limit: 20, total: 0, pages: 0 }
+        });
+      }
+      filter.$or = [
+        { player1_id: { $in: ids } },
+        { player2_id: { $in: ids } }
+      ];
+    }
+
+    const pageNum = Math.max(1, parseInt(page) || 1);
+    const limit = Math.min(100, Math.max(1, parseInt(lim) || 20));
+    const skip = (pageNum - 1) * limit;
+
+    const sortField = sort_by || 'created_at';
+    const sortDirection = sort_dir === 'asc' ? 1 : -1;
+
+    // Фильтрация по количеству ходов через агрегацию
+    let games, total;
+
+    if (moves_min || moves_max) {
+      const pipeline = [
+        { $match: filter },
+        { $addFields: { moves_count: { $size: '$moves' } } }
+      ];
+
+      const movesFilter = {};
+      if (moves_min) movesFilter.$gte = parseInt(moves_min);
+      if (moves_max) movesFilter.$lte = parseInt(moves_max);
+      pipeline.push({ $match: { moves_count: movesFilter } });
+
+      const countPipeline = [...pipeline, { $count: 'total' }];
+      const countResult = await db.collection('games').aggregate(countPipeline).toArray();
+      total = countResult.length > 0 ? countResult[0].total : 0;
+
+      pipeline.push(
+        { $sort: { [sortField]: sortDirection } },
+        { $skip: skip },
+        { $limit: limit },
+        { $project: { moves: 0 } }
+      );
+
+      games = await db.collection('games').aggregate(pipeline).toArray();
+    } else {
+      [games, total] = await Promise.all([
+        db.collection('games').find(filter)
+          .project({ moves: 0 })
+          .sort({ [sortField]: sortDirection })
+          .skip(skip).limit(limit).toArray(),
+        db.collection('games').countDocuments(filter)
+      ]);
+    }
+
+    // Подгружаем имена участников
+    const playerIds = new Set();
+    games.forEach(g => {
+      playerIds.add(g.player1_id.toString());
+      playerIds.add(g.player2_id.toString());
+      if (g.winner_id) playerIds.add(g.winner_id.toString());
+    });
+
+    const players = await db.collection('players').find({
+      _id: { $in: Array.from(playerIds).map(id => new ObjectId(id)) }
+    }).project({ username: 1, name: 1, type: 1 }).toArray();
+
+    const playerMap = {};
+    players.forEach(p => {
+      playerMap[p._id.toString()] = p.type === 'player' ? p.username : p.name;
+    });
+
+    const enriched = games.map(g => ({
+      ...g,
+      player1_name: playerMap[g.player1_id.toString()] || 'Неизвестен',
+      player2_name: playerMap[g.player2_id.toString()] || 'Неизвестен',
+      winner_name: g.winner_id ? (playerMap[g.winner_id.toString()] || 'Неизвестен') : null,
+      moves_count: g.moves_count || undefined
+    }));
+
+    res.json({
+      data: enriched,
+      pagination: { page: pageNum, limit, total, pages: Math.ceil(total / limit) }
+    });
+  } catch (err) {
+    console.error('Games list error:', err);
+    res.status(500).json({ error: 'Ошибка сервера' });
+  }
+});
+
+app.get('/api/games/:id', optionalAuth, async (req, res) => {
+  try {
+    if (!ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({ error: 'Некорректный ID' });
+    }
+
+    const game = await db.collection('games').findOne({
+      _id: new ObjectId(req.params.id)
+    });
+    if (!game) return res.status(404).json({ error: 'Партия не найдена' });
+
+    // Подгружаем имена
+    const ids = [game.player1_id, game.player2_id];
+    if (game.winner_id) ids.push(game.winner_id);
+
+    const players = await db.collection('players').find({
+      _id: { $in: ids }
+    }).project({ username: 1, name: 1, type: 1 }).toArray();
+
+    const playerMap = {};
+    players.forEach(p => {
+      playerMap[p._id.toString()] = {
+        name: p.type === 'player' ? p.username : p.name,
+        type: p.type
+      };
+    });
+
+    // Названия для ходов
+    const movePlayerIds = [...new Set(game.moves.map(m => m.player_id.toString()))];
+    const movePlayers = await db.collection('players').find({
+      _id: { $in: movePlayerIds.map(id => new ObjectId(id)) }
+    }).project({ username: 1, name: 1, type: 1 }).toArray();
+
+    movePlayers.forEach(p => {
+      if (!playerMap[p._id.toString()]) {
+        playerMap[p._id.toString()] = {
+          name: p.type === 'player' ? p.username : p.name,
+          type: p.type
+        };
+      }
+    });
+
+    // Имена для status_history changed_by
+    const changerIds = game.status_history
+      .filter(h => h.changed_by)
+      .map(h => h.changed_by);
+    if (changerIds.length > 0) {
+      const changers = await db.collection('players').find({
+        _id: { $in: changerIds }
+      }).project({ username: 1, name: 1, type: 1 }).toArray();
+      changers.forEach(c => {
+        if (!playerMap[c._id.toString()]) {
+          playerMap[c._id.toString()] = {
+            name: c.type === 'player' ? c.username : c.name,
+            type: c.type
+          };
+        }
+      });
+    }
+
+    const enriched = {
+      ...game,
+      player1_name: playerMap[game.player1_id.toString()]?.name || 'Неизвестен',
+      player2_name: playerMap[game.player2_id.toString()]?.name || 'Неизвестен',
+      winner_name: game.winner_id ? (playerMap[game.winner_id.toString()]?.name || 'Неизвестен') : null,
+      moves: game.moves.map(m => ({
+        ...m,
+        player_name: playerMap[m.player_id.toString()]?.name || 'Неизвестен'
+      })),
+      status_history: game.status_history.map(h => ({
+        ...h,
+        changed_by_name: h.changed_by ? (playerMap[h.changed_by.toString()]?.name || 'Неизвестен') : null
+      }))
+    };
+
+    res.json(enriched);
+  } catch (err) {
+    console.error('Game detail error:', err);
+    res.status(500).json({ error: 'Ошибка сервера' });
+  }
+});
+
+app.get('/api/games/:id/status-history', optionalAuth, async (req, res) => {
+  try {
+    if (!ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({ error: 'Некорректный ID' });
+    }
+
+    const game = await db.collection('games').findOne(
+      { _id: new ObjectId(req.params.id) },
+      { projection: { status_history: 1 } }
+    );
+    if (!game) return res.status(404).json({ error: 'Партия не найдена' });
+
+    const changerIds = game.status_history
+      .filter(h => h.changed_by)
+      .map(h => h.changed_by);
+
+    let changerMap = {};
+    if (changerIds.length > 0) {
+      const changers = await db.collection('players').find({
+        _id: { $in: changerIds }
+      }).project({ username: 1, name: 1, type: 1 }).toArray();
+      changers.forEach(c => {
+        changerMap[c._id.toString()] = c.type === 'player' ? c.username : c.name;
+      });
+    }
+
+    res.json({
+      entity_type: 'game',
+      history: game.status_history.map(h => ({
+        ...h,
+        changed_by_name: h.changed_by ? (changerMap[h.changed_by.toString()] || 'Неизвестен') : null
+      }))
+    });
+  } catch (err) {
+    res.status(500).json({ error: 'Ошибка сервера' });
+  }
+});
+
+app.post('/api/games', authMiddleware, async (req, res) => {
+  try {
+    const { mode, player1_id, player2_id, comment } = req.body;
+
+    if (!mode || !player1_id || !player2_id) {
+      return res.status(400).json({ error: 'Режим и оба участника обязательны' });
+    }
+    if (!['hotseat', 'bot'].includes(mode)) {
+      return res.status(400).json({ error: 'Недопустимый режим игры' });
+    }
+    if (!ObjectId.isValid(player1_id) || !ObjectId.isValid(player2_id)) {
+      return res.status(400).json({ error: 'Некорректные ID участников' });
+    }
+    if (player1_id === player2_id) {
+      return res.status(400).json({ error: 'Участники должны быть разными' });
+    }
+
+    const p1 = await db.collection('players').findOne({ _id: new ObjectId(player1_id) });
+    const p2 = await db.collection('players').findOne({ _id: new ObjectId(player2_id) });
+
+    if (!p1 || !p2) {
+      return res.status(404).json({ error: 'Один или оба участника не найдены' });
+    }
+
+    if (mode === 'bot') {
+      const hasBot = p1.type === 'bot' || p2.type === 'bot';
+      if (!hasBot) {
+        return res.status(400).json({ error: 'В режиме "bot" один из участников должен быть ботом' });
+      }
+    }
+
+    const now = new Date();
+    const result = await db.collection('games').insertOne({
+      mode,
+      status: 'created',
+      player1_id: new ObjectId(player1_id),
+      player2_id: new ObjectId(player2_id),
+      winner_id: null,
+      result: null,
+      comment: comment || '',
+      created_at: now,
+      updated_at: now,
+      moves: [],
+      status_history: [{
+        changed_at: now,
+        old_status: null,
+        new_status: 'created',
+        changed_by: new ObjectId(req.user.id),
+        reason: 'Создание партии'
+      }]
+    });
+
+    const game = await db.collection('games').findOne({ _id: result.insertedId });
+
+    const p1name = p1.type === 'player' ? p1.username : p1.name;
+    const p2name = p2.type === 'player' ? p2.username : p2.name;
+
+    res.status(201).json({
+      ...game,
+      player1_name: p1name,
+      player2_name: p2name,
+      winner_name: null
+    });
+  } catch (err) {
+    console.error('Create game error:', err);
+    res.status(500).json({ error: 'Ошибка сервера' });
+  }
+});
