@@ -973,7 +973,114 @@ app.post('/api/games', authMiddleware, async (req, res) => {
   }
 });
 
+app.get('/api/games/:id/edit', authMiddleware, async (req, res) => {
+  try {
+    const game = await db.collection('games').findOne({ _id: new ObjectId(req.params.id) });
+    if (!game) return res.status(404).json({ error: 'Партия не найдена' });
 
+    const players = await db.collection('players').find(
+        {},
+        { projection: { username: 1, name: 1, type: 1, status: 1 } }
+    ).sort({ type: 1, username: 1, name: 1 }).toArray();
+
+    res.json({ game, players });
+  } catch (err) {
+    console.error('Get game for edit error:', err);
+    res.status(500).json({ error: 'Ошибка сервера' });
+  }
+});
+
+app.put('/api/games/:id', authMiddleware, async (req, res) => {
+  try {
+    const { mode, status, player1_id, player2_id, winner_id, result, comment, reason } = req.body;
+    const gameId = new ObjectId(req.params.id);
+
+    const game = await db.collection('games').findOne({ _id: gameId });
+    if (!game) return res.status(404).json({ error: 'Партия не найдена' });
+
+    const validModes = ['hotseat', 'bot'];
+    const validStatuses = ['created', 'in_progress', 'completed', 'paused', 'abandoned'];
+    const validResults = ['checkmate', 'stalemate', 'draw', 'resignation', 'timeout', null, ''];
+
+    if (mode && !validModes.includes(mode)) {
+      return res.status(400).json({ error: 'Недопустимый режим игры' });
+    }
+    if (status && !validStatuses.includes(status)) {
+      return res.status(400).json({ error: 'Недопустимый статус' });
+    }
+    if (result && !validResults.includes(result)) {
+      return res.status(400).json({ error: 'Недопустимый результат' });
+    }
+
+    if (player1_id) {
+      const p1 = await db.collection('players').findOne({ _id: new ObjectId(player1_id) });
+      if (!p1) return res.status(400).json({ error: 'Игрок 1 не найден' });
+    }
+    if (player2_id) {
+      const p2 = await db.collection('players').findOne({ _id: new ObjectId(player2_id) });
+      if (!p2) return res.status(400).json({ error: 'Игрок 2 не найден' });
+    }
+    if (winner_id && winner_id !== 'null') {
+      const w = await db.collection('players').findOne({ _id: new ObjectId(winner_id) });
+      if (!w) return res.status(400).json({ error: 'Победитель не найден' });
+    }
+
+    const updateFields = { updated_at: new Date() };
+
+    if (mode) updateFields.mode = mode;
+    if (status) updateFields.status = status;
+    if (player1_id) updateFields.player1_id = new ObjectId(player1_id);
+    if (player2_id) updateFields.player2_id = new ObjectId(player2_id);
+    if (winner_id === 'null' || winner_id === '') {
+      updateFields.winner_id = null;
+    } else if (winner_id) {
+      updateFields.winner_id = new ObjectId(winner_id);
+    }
+    if (result !== undefined) updateFields.result = result || null;
+    if (comment !== undefined) updateFields.comment = comment;
+
+    const updateOps = { $set: updateFields };
+
+    if (status && status !== game.status) {
+      updateOps.$push = {
+        status_history: {
+          changed_at: new Date(),
+          old_status: game.status,
+          new_status: status,
+          changed_by: new ObjectId(req.user.id),
+          reason: reason || 'Редактирование партии'
+        }
+      };
+    }
+
+    await db.collection('games').updateOne({ _id: gameId }, updateOps);
+
+    res.json({ message: 'Партия обновлена' });
+  } catch (err) {
+    console.error('Update game error:', err);
+    res.status(500).json({ error: 'Ошибка обновления партии' });
+  }
+});
+
+app.delete('/api/games/:id', authMiddleware, async (req, res) => {
+  try {
+    const gameId = new ObjectId(req.params.id);
+    const game = await db.collection('games').findOne({ _id: gameId });
+
+    if (!game) return res.status(404).json({ error: 'Партия не найдена' });
+
+    if (game.status === 'in_progress') {
+      return res.status(400).json({ error: 'Нельзя удалить партию в процессе. Сначала завершите или прервите её.' });
+    }
+
+    await db.collection('games').deleteOne({ _id: gameId });
+
+    res.json({ message: 'Партия удалена' });
+  } catch (err) {
+    console.error('Delete game error:', err);
+    res.status(500).json({ error: 'Ошибка удаления' });
+  }
+});
 
 app.get('/api/participants', optionalAuth, async (req, res) => {
   try {
