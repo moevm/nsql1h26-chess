@@ -1,11 +1,15 @@
-// ===================== STATE =====================
+// =====================
+// Состояния
+// =====================
 const state = {
   token: localStorage.getItem('token') || null,
   user: JSON.parse(localStorage.getItem('user') || 'null'),
   currentPage: 'home'
 };
 
-// ===================== API =====================
+// =====================
+// API
+// =====================
 const API_BASE = '/api';
 
 async function api(path, options = {}) {
@@ -35,7 +39,9 @@ async function api(path, options = {}) {
   }
 }
 
-// ===================== AUTH =====================
+// =====================
+// Аунтефикация
+// =====================
 function setAuth(token, user) {
   state.token = token;
   state.user = user;
@@ -69,7 +75,9 @@ function updateHeader() {
   }
 }
 
-// ===================== NAVIGATION =====================
+// =====================
+// Навигация
+// =====================
 function navigate(page, params = {}) {
   state.currentPage = page;
   state.pageParams = params;
@@ -103,7 +111,9 @@ function navigate(page, params = {}) {
   }
 }
 
-// ===================== TOAST =====================
+// =====================
+// Тост уведомление
+// =====================
 function showToast(message, type = 'success') {
   const container = document.getElementById('toast-container');
   const toast = document.createElement('div');
@@ -113,7 +123,9 @@ function showToast(message, type = 'success') {
   setTimeout(() => toast.remove(), 4000);
 }
 
-// ===================== HELPERS =====================
+// =====================
+// Helpers
+// =====================
 function formatDate(dateStr) {
   if (!dateStr) return '—';
   const d = new Date(dateStr);
@@ -172,7 +184,9 @@ function paginationHTML(pagination, onPageChange) {
   return html;
 }
 
-// ===================== HOME PAGE =====================
+// =====================
+// Главная
+// =====================
 async function renderHome() {
   const main = document.getElementById('main-content');
   let statsHtml = '';
@@ -200,7 +214,9 @@ async function renderHome() {
     </div>`;
 }
 
-// ===================== LOGIN =====================
+// =====================
+// Вход
+// =====================
 function renderLogin() {
   const main = document.getElementById('main-content');
   main.innerHTML = `
@@ -252,7 +268,9 @@ async function handleLogin(e) {
   }
 }
 
-// ===================== REGISTER =====================
+// =====================
+// Регистрация
+// =====================
 function renderRegister() {
   const main = document.getElementById('main-content');
   main.innerHTML = `
@@ -314,7 +332,9 @@ async function handleRegister(e) {
   }
 }
 
-// ===================== GAMES LIST =====================
+// =====================
+// Список сессий
+// =====================
 let gamesFilters = {};
 let gamesPage = 1;
 let gamesSortBy = 'created_at';
@@ -517,7 +537,9 @@ async function loadGames() {
   }
 }
 
-// ===================== GAME DETAIL =====================
+// =====================
+// Информация о сессиях
+// =====================
 async function renderGameDetail(id) {
   const main = document.getElementById('main-content');
   try {
@@ -595,7 +617,9 @@ async function renderGameDetail(id) {
   }
 }
 
-// ===================== GAME CREATE =====================
+// =====================
+// Создание сессии
+// =====================
 async function renderGameCreate() {
   if (!state.user) {
     showToast('Необходимо авторизоваться', 'error');
@@ -701,7 +725,9 @@ async function handleCreateGame(e) {
   }
 }
 
-// ===================== PLAYERS LIST =====================
+// =====================
+// Список игроков
+// =====================
 let playersFilters = {};
 let playersPage = 1;
 let playersSortBy = 'created_at';
@@ -917,7 +943,9 @@ async function loadPlayers() {
   }
 }
 
-// ===================== PLAYER DETAIL =====================
+// =====================
+// Информация об игроках
+// =====================
 async function renderPlayerDetail(id) {
   const main = document.getElementById('main-content');
   if (!id) {
@@ -1051,7 +1079,9 @@ async function loadPlayerGames(playerId) {
   }
 }
 
-// ===================== BOTS LIST =====================
+// =====================
+// Список ботов
+// =====================
 let botsFilters = {};
 let botsPage = 1;
 let botsSortBy = 'created_at';
@@ -1261,7 +1291,9 @@ async function loadBots() {
   }
 }
 
-// ===================== BOT DETAIL =====================
+// =====================
+// Информация о ботах
+// =====================
 async function renderBotDetail(id) {
   const main = document.getElementById('main-content');
   try {
@@ -1395,7 +1427,9 @@ async function loadBotGames(botId) {
   }
 }
 
-// ===================== BOT CREATE =====================
+// =====================
+// Создание бота
+// =====================
 function renderBotCreate() {
   if (!state.user) {
     showToast('Необходимо авторизоваться', 'error');
@@ -1457,7 +1491,9 @@ async function handleCreateBot(e) {
   }
 }
 
-// ===================== BOT EDIT =====================
+// =====================
+// Редактирование бота
+// =====================
 async function renderBotEdit(id) {
   if (!state.user) {
     showToast('Необходимо авторизоваться', 'error');
@@ -1556,7 +1592,9 @@ async function handleUpdateBot(e, id) {
   }
 }
 
-// ===================== BOT DELETE =====================
+// =====================
+// Удаление бота
+// =====================
 function confirmDeleteBot(id, name) {
   const overlay = document.createElement('div');
   overlay.className = 'modal-overlay';
@@ -1590,7 +1628,9 @@ async function executeDeleteBot(id) {
   }
 }
 
-// ===================== STATUS HISTORY =====================
+// =====================
+// История статусов
+// =====================
 async function renderStatusHistory(type, id) {
   const main = document.getElementById('main-content');
 
@@ -1742,7 +1782,9 @@ function filterStatusHistory() {
   container.innerHTML = html;
 }
 
-// ===================== PLAYER EDIT =====================
+// =====================
+// Редактирование игрока
+// =====================
 async function renderPlayerEdit(id) {
   if (!state.user) {
     showToast('Необходимо авторизоваться', 'error');
@@ -1830,7 +1872,9 @@ async function handleUpdatePlayer(e, id) {
   }
 }
 
-// ===================== IMPORT / EXPORT =====================
+// =====================
+// Импорт/Экспорт
+// =====================
 function renderImportExport() {
   const main = document.getElementById('main-content');
   main.innerHTML = `
@@ -1923,7 +1967,9 @@ async function handleImport() {
   }
 }
 
-// ===================== INITIALIZATION =====================
+// =====================
+// Инициализация
+// =====================
 document.addEventListener('DOMContentLoaded', () => {
   updateHeader();
   navigate('home');

@@ -7,39 +7,36 @@
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <div id="app">
-        <!-- Header -->
-        <header id="header">
-            <div class="header-left">
-                <h1 class="logo" onclick="navigate('home')">Круговые шахматы</h1>
+<div id="app">
+    <header id="header">
+        <div class="header-left">
+            <h1 class="logo" onclick="navigate('home')">Круговые шахматы</h1>
+        </div>
+        <nav id="nav-menu" class="header-nav">
+            <button class="nav-btn" onclick="navigate('games')" data-page="games">Партии</button>
+            <button class="nav-btn" onclick="navigate('players')" data-page="players">Игроки</button>
+            <button class="nav-btn" onclick="navigate('bots')" data-page="bots">Боты</button>
+            <button class="nav-btn" onclick="navigate('import-export')" data-page="import-export">Импорт/Экспорт</button>
+        </nav>
+        <div class="header-right">
+            <div id="auth-buttons">
+                <button class="btn btn-outline" onclick="navigate('login')">Войти</button>
+                <button class="btn btn-primary" onclick="navigate('register')">Регистрация</button>
             </div>
-            <nav id="nav-menu" class="header-nav">
-                <button class="nav-btn" onclick="navigate('games')" data-page="games">Партии</button>
-                <button class="nav-btn" onclick="navigate('players')" data-page="players">Игроки</button>
-                <button class="nav-btn" onclick="navigate('bots')" data-page="bots">Боты</button>
-            </nav>
-            <div class="header-right">
-                <div id="auth-buttons">
-                    <button class="btn btn-outline" onclick="navigate('login')">Войти</button>
-                    <button class="btn btn-primary" onclick="navigate('register')">Регистрация</button>
-                </div>
-                <div id="user-menu" class="hidden">
-                    <span id="user-display" class="user-name"></span>
-                    <button class="btn btn-outline btn-sm" onclick="navigate('profile')">Профиль</button>
-                    <button class="btn btn-danger btn-sm" onclick="logout()">Выйти</button>
-                </div>
+            <div id="user-menu" class="hidden">
+                <span id="user-display" class="user-name"></span>
+                <button class="btn btn-outline btn-sm" onclick="navigate('profile')">Профиль</button>
+                <button class="btn btn-danger btn-sm" onclick="logout()">Выйти</button>
             </div>
-        </header>
+        </div>
+    </header>
 
-        <!-- Main Content -->
-        <main id="main-content">
-            <!-- Динамическое содержимое -->
-        </main>
+    <main id="main-content">
+    </main>
 
-        <!-- Toast notifications -->
-        <div id="toast-container"></div>
-    </div>
+    <div id="toast-container"></div>
+</div>
 
-    <script src="app.js"></script>
+<script src="app.js"></script>
 </body>
 </html>
