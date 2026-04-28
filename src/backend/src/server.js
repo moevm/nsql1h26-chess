@@ -959,3 +959,58 @@ app.post('/api/games', authMiddleware, async (req, res) => {
     res.status(500).json({ error: 'Ошибка сервера' });
   }
 });
+
+
+
+app.get('/api/participants', optionalAuth, async (req, res) => {
+  try {
+    const { type } = req.query;
+    const filter = { status: 'active' };
+    if (type) filter.type = type;
+
+    const participants = await db.collection('players').find(filter)
+      .project({ username: 1, name: 1, type: 1 })
+      .sort({ type: 1, username: 1, name: 1 })
+      .toArray();
+
+    const result = participants.map(p => ({
+      _id: p._id,
+      display_name: p.type === 'player' ? p.username : `🤖 ${p.name}`,
+      type: p.type
+    }));
+
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ error: 'Ошибка сервера' });
+  }
+});
+
+app.get('/api/stats/overview', optionalAuth, async (req, res) => {
+  try {
+    const [playersCount, botsCount, gamesCount, completedCount] = await Promise.all([
+      db.collection('players').countDocuments({ type: 'player' }),
+      db.collection('players').countDocuments({ type: 'bot' }),
+      db.collection('games').countDocuments(),
+      db.collection('games').countDocuments({ status: 'completed' })
+    ]);
+
+    res.json({
+      players: playersCount,
+      bots: botsCount,
+      games: gamesCount,
+      completed_games: completedCount
+    });
+  } catch (err) {
+    res.status(500).json({ error: 'Ошибка сервера' });
+  }
+});
+
+// старт 
+connectDB().then(() => {
+  app.listen(PORT, () => {
+    console.log(`Server running on port ${PORT}`);
+  });
+}).catch(err => {
+  console.error('Failed to start:', err);
+  process.exit(1);
+});
