@@ -106,6 +106,7 @@ function navigate(page, params = {}) {
     case 'bot-edit': renderBotEdit(params.id); break;
     case 'status-history': renderStatusHistory(params.type, params.id); break;
     case 'player-edit': renderPlayerEdit(params.id); break;
+    case 'game-edit': renderGameEdit(params.id); break;
     case 'import-export': renderImportExport(); break;
     default: renderHome();
   }
@@ -608,6 +609,7 @@ async function renderGameDetail(id) {
         </div>
         <div style="margin-top:16px;">
           <button class="btn btn-secondary btn-sm" onclick="navigate('status-history',{type:'game',id:'${game._id}'})">История статусов</button>
+          <button class="btn btn-secondary btn-sm" onclick="navigate('game-edit',{id:'${id}'})">Редактировать</button>
         </div>
       </div>
 
@@ -1869,6 +1871,221 @@ async function handleUpdatePlayer(e, id) {
   } catch (err) {
     showToast(err.message, 'error');
     btn.disabled = false;
+  }
+}
+
+// =====================
+// Редактирование игры
+// =====================
+async function renderGameEdit(id) {
+  if (!state.user) {
+    showToast('Необходимо авторизоваться', 'error');
+    navigate('login');
+    return;
+  }
+
+  const main = document.getElementById('main-content');
+  main.innerHTML = '<div class="empty-state"><p>Загрузка...</p></div>';
+
+  try {
+    const { game, players } = await api(`/games/${id}/edit`);
+
+    const playerOptions = players.map(p => {
+      const label = p.type === 'player'
+          ? `${p.username}`
+          : `${p.name}`;
+      return `<option value="${p._id}">${escapeHtml(label)} (${p.status})</option>`;
+    }).join('');
+
+    const winnerOptions = `<option value="null">Нет (ничья)</option>` + playerOptions;
+
+    main.innerHTML = `
+      <div class="page-title">
+        <span>
+          <a onclick="navigate('game-detail',{id:'${id}'})" style="cursor:pointer;color:var(--primary);text-decoration:none;">
+            ← Партия
+          </a>
+          &nbsp;/ Редактирование
+        </span>
+      </div>
+
+      <div class="card">
+        <h3 class="card-title">Редактирование партии</h3>
+        <form onsubmit="handleUpdateGame(event, '${id}')">
+          <div class="form-grid">
+            <div class="form-group">
+              <label>Режим</label>
+              <select id="ge-mode" class="form-control">
+                <option value="hotseat" ${game.mode === 'hotseat' ? 'selected' : ''}>Hotseat</option>
+                <option value="bot" ${game.mode === 'bot' ? 'selected' : ''}>Бот</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label>Статус</label>
+              <select id="ge-status" class="form-control">
+                <option value="created" ${game.status === 'created' ? 'selected' : ''}>Создана</option>
+                <option value="in_progress" ${game.status === 'in_progress' ? 'selected' : ''}>В процессе</option>
+                <option value="completed" ${game.status === 'completed' ? 'selected' : ''}>Завершена</option>
+                <option value="paused" ${game.status === 'paused' ? 'selected' : ''}>Пауза</option>
+                <option value="abandoned" ${game.status === 'abandoned' ? 'selected' : ''}>Прервана</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label>Игрок 1</label>
+              <select id="ge-player1" class="form-control">
+                ${playerOptions}
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label>Игрок 2</label>
+              <select id="ge-player2" class="form-control">
+                ${playerOptions}
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label>Победитель</label>
+              <select id="ge-winner" class="form-control">
+                ${winnerOptions}
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label>Результат</label>
+              <select id="ge-result" class="form-control">
+                <option value="" ${!game.result ? 'selected' : ''}>Не определён</option>
+                <option value="checkmate" ${game.result === 'checkmate' ? 'selected' : ''}>Мат</option>
+                <option value="stalemate" ${game.result === 'stalemate' ? 'selected' : ''}>Пат</option>
+                <option value="draw" ${game.result === 'draw' ? 'selected' : ''}>Ничья</option>
+                <option value="resignation" ${game.result === 'resignation' ? 'selected' : ''}>Сдача</option>
+                <option value="timeout" ${game.result === 'timeout' ? 'selected' : ''}>Время вышло</option>
+              </select>
+            </div>
+
+            <div class="form-group" style="grid-column: 1 / -1;">
+              <label>Комментарий</label>
+              <textarea id="ge-comment" class="form-control" rows="3">${escapeHtml(game.comment || '')}</textarea>
+            </div>
+
+            <div class="form-group" id="ge-reason-group" style="display:none;grid-column:1/-1;">
+              <label>Причина изменения статуса</label>
+              <input type="text" class="form-control" id="ge-reason" placeholder="Укажите причину...">
+            </div>
+          </div>
+
+          <div class="form-actions">
+            <button type="submit" class="btn btn-primary" id="ge-btn">Сохранить</button>
+            <button type="button" class="btn btn-secondary" onclick="navigate('game-detail',{id:'${id}'})">Отмена</button>
+            <button type="button" class="btn btn-danger" onclick="confirmDeleteGame('${id}')" style="margin-left:auto;">Удалить партию</button>
+          </div>
+        </form>
+      </div>`;
+
+    // Устанавливаем текущие значения select
+    document.getElementById('ge-player1').value = game.player1_id;
+    document.getElementById('ge-player2').value = game.player2_id;
+    document.getElementById('ge-winner').value = game.winner_id || 'null';
+
+    // Показываем поле причины при смене статуса
+    const statusSelect = document.getElementById('ge-status');
+    const originalStatus = game.status;
+    statusSelect.addEventListener('change', () => {
+      const reasonGroup = document.getElementById('ge-reason-group');
+      if (statusSelect.value !== originalStatus) {
+        reasonGroup.style.display = 'block';
+      } else {
+        reasonGroup.style.display = 'none';
+      }
+    });
+
+    // Устанавливаем игрока для нового хода
+    if (game.moves && game.moves.length > 0) {
+      const lastMove = game.moves[game.moves.length - 1];
+      const lastPlayerId = lastMove.player_id.toString();
+      // Следующий ход — другой игрок
+      const nextPlayerId = lastPlayerId === game.player1_id.toString()
+        ? game.player2_id
+        : game.player1_id;
+      const mvPlayer = document.getElementById('mv-player');
+      if (mvPlayer) mvPlayer.value = nextPlayerId;
+    }
+
+  } catch (err) {
+    console.error('Load game edit error:', err);
+    main.innerHTML = `<div class="empty-state"><p>Ошибка загрузки: ${escapeHtml(err.message)}</p></div>`;
+  }
+}
+
+async function handleUpdateGame(event, gameId) {
+  event.preventDefault();
+
+  const btn = document.getElementById('ge-btn');
+  btn.disabled = true;
+  btn.textContent = 'Сохранение...';
+
+  try {
+    const data = {
+      mode: document.getElementById('ge-mode').value,
+      status: document.getElementById('ge-status').value,
+      player1_id: document.getElementById('ge-player1').value,
+      player2_id: document.getElementById('ge-player2').value,
+      winner_id: document.getElementById('ge-winner').value,
+      result: document.getElementById('ge-result').value,
+      comment: document.getElementById('ge-comment').value,
+      reason: document.getElementById('ge-reason').value || ''
+    };
+
+    // Валидация на клиенте
+    if (data.player1_id === data.player2_id) {
+      showToast('Игрок 1 и Игрок 2 не могут совпадать', 'error');
+      btn.disabled = false;
+      btn.textContent = 'Сохранить';
+      return;
+    }
+
+    if (data.status === 'completed' && !data.result) {
+      showToast('Укажите результат для завершённой партии', 'error');
+      btn.disabled = false;
+      btn.textContent = 'Сохранить';
+      return;
+    }
+
+    if (data.result === 'checkmate' && data.winner_id === 'null') {
+      showToast('При мате должен быть указан победитель', 'error');
+      btn.disabled = false;
+      btn.textContent = 'Сохранить';
+      return;
+    }
+
+    await api(`/games/${gameId}`, {
+      method: 'PUT',
+      body: JSON.stringify(data)
+    });
+
+    showToast('Партия обновлена', 'success');
+    navigate('game-detail', { id: gameId });
+  } catch (err) {
+    showToast(err.message || 'Ошибка обновления', 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Сохранить';
+  }
+}
+
+async function confirmDeleteGame(gameId) {
+  if (!confirm('Вы уверены, что хотите удалить эту партию? Это действие необратимо.')) {
+    return;
+  }
+
+  try {
+    await api(`/games/${gameId}`, { method: 'DELETE' });
+    showToast('Партия удалена', 'success');
+    navigate('games');
+  } catch (err) {
+    showToast(err.message || 'Ошибка удаления', 'error');
   }
 }
 
