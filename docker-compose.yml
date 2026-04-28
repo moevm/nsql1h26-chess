@@ -1,12 +1,13 @@
 services:
   db:
-    image: mongo:7
+    build:
+      context: ./src/mongo-init
+      dockerfile: Dockerfile
     container_name: circular-chess-db
     environment:
       MONGO_INITDB_DATABASE: circular_chess
     volumes:
       - mongo-data:/data/db
-      - ./src/mongo-init/init.js:/docker-entrypoint-initdb.d/init.js:ro
     networks:
       - app-network
 
