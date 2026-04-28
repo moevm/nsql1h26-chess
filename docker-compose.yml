@@ -7,8 +7,6 @@ services:
     volumes:
       - mongo-data:/data/db
       - ./src/mongo-init/init.js:/docker-entrypoint-initdb.d/init.js:ro
-    ports:
-      - "27017:27017"
     networks:
       - app-network
 

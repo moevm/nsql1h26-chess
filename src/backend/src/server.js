@@ -48,6 +48,7 @@ async function seedPasswords() {
   for (const p of players) {
     let password;
     if (p.username === 'admin') password = 'admin123';
+    else if (p.username === 'player1') password = 'player123';
     else password = 'player123';
 
     const hash = await bcrypt.hash(password, 10);
@@ -241,6 +242,7 @@ app.get('/api/players', optionalAuth, async (req, res) => {
       username, email, status, comment,
       wins_min, wins_max, losses_min, losses_max,
       draws_min, draws_max, total_min, total_max,
+      elo_min, elo_max,
       created_from, created_to,
       sort_by, sort_dir,
       page, limit: lim
@@ -272,6 +274,11 @@ app.get('/api/players', optionalAuth, async (req, res) => {
       filter['stats.total_games'] = {};
       if (total_min) filter['stats.total_games'].$gte = parseInt(total_min);
       if (total_max) filter['stats.total_games'].$lte = parseInt(total_max);
+    }
+    if (elo_min || elo_max) {
+      filter['stats.elo'] = {};
+      if (elo_min) filter['stats.elo'].$gte = parseInt(elo_min);
+      if (elo_max) filter['stats.elo'].$lte = parseInt(elo_max);
     }
     if (created_from || created_to) {
       filter.created_at = {};
@@ -431,6 +438,7 @@ app.get('/api/bots', optionalAuth, async (req, res) => {
       name, api_url, status, comment,
       wins_min, wins_max, losses_min, losses_max,
       draws_min, draws_max, total_min, total_max,
+      elo_min, elo_max,
       created_from, created_to,
       sort_by, sort_dir,
       page, limit: lim
@@ -462,6 +470,11 @@ app.get('/api/bots', optionalAuth, async (req, res) => {
       filter['stats.total_games'] = {};
       if (total_min) filter['stats.total_games'].$gte = parseInt(total_min);
       if (total_max) filter['stats.total_games'].$lte = parseInt(total_max);
+    }
+    if (elo_min || elo_max) {
+      filter['stats.elo'] = {};
+      if (elo_min) filter['stats.elo'].$gte = parseInt(elo_min);
+      if (elo_max) filter['stats.elo'].$lte = parseInt(elo_max);
     }
     if (created_from || created_to) {
       filter.created_at = {};
@@ -1005,7 +1018,135 @@ app.get('/api/stats/overview', optionalAuth, async (req, res) => {
   }
 });
 
-// старт 
+app.put('/api/players/:id', authMiddleware, async (req, res) => {
+  try {
+    if (!ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({ error: 'Некорректный ID' });
+    }
+
+    const player = await db.collection('players').findOne({
+      _id: new ObjectId(req.params.id), type: 'player'
+    });
+    if (!player) return res.status(404).json({ error: 'Игрок не найден' });
+
+    const { comment, status, reason } = req.body;
+    const updates = { updated_at: new Date() };
+    const pushOps = {};
+
+    if (comment !== undefined) updates.comment = comment;
+
+    if (status !== undefined && status !== player.status) {
+      const validStatuses = ['active', 'banned', 'deleted'];
+      if (!validStatuses.includes(status)) {
+        return res.status(400).json({ error: 'Недопустимый статус' });
+      }
+      updates.status = status;
+      pushOps.status_history = {
+        changed_at: new Date(),
+        old_status: player.status,
+        new_status: status,
+        changed_by: new ObjectId(req.user.id),
+        reason: reason || 'Изменение статуса'
+      };
+    }
+
+    const updateQuery = { $set: updates };
+    if (Object.keys(pushOps).length > 0) updateQuery.$push = pushOps;
+
+    await db.collection('players').updateOne({ _id: player._id }, updateQuery);
+    const updated = await db.collection('players').findOne(
+      { _id: player._id }, { projection: { password_hash: 0 } }
+    );
+    res.json(updated);
+  } catch (err) {
+    console.error('Update player error:', err);
+    res.status(500).json({ error: 'Ошибка сервера' });
+  }
+});
+
+app.get('/api/export', optionalAuth, async (req, res) => {
+  try {
+    const [players, bots, games] = await Promise.all([
+      db.collection('players').find({ type: 'player' })
+        .project({ password_hash: 0 }).toArray(),
+      db.collection('players').find({ type: 'bot' }).toArray(),
+      db.collection('games').find({}).toArray()
+    ]);
+
+    const data = {
+      exported_at: new Date().toISOString(),
+      players,
+      bots,
+      games
+    };
+
+    res.setHeader('Content-Type', 'application/json');
+    res.setHeader('Content-Disposition', `attachment; filename="chess-export-${Date.now()}.json"`);
+    res.json(data);
+  } catch (err) {
+    console.error('Export error:', err);
+    res.status(500).json({ error: 'Ошибка экспорта' });
+  }
+});
+
+app.post('/api/import', authMiddleware, async (req, res) => {
+  try {
+    const { players, bots, games, strategy = 'skip' } = req.body;
+
+    if (!['skip', 'overwrite', 'add'].includes(strategy)) {
+      return res.status(400).json({ error: 'Недопустимая стратегия' });
+    }
+
+    const results = { players: 0, bots: 0, games: 0, errors: [] };
+
+    // Helper to import collection items
+    const importItems = async (items, collection, keyField, type) => {
+      if (!items || !Array.isArray(items)) return;
+      for (const item of items) {
+        try {
+          const doc = { ...item };
+          if (doc._id) doc._id = new ObjectId(doc._id.toString());
+          if (doc.player1_id) doc.player1_id = new ObjectId(doc.player1_id.toString());
+          if (doc.player2_id) doc.player2_id = new ObjectId(doc.player2_id.toString());
+          if (doc.winner_id && doc.winner_id !== null) doc.winner_id = new ObjectId(doc.winner_id.toString());
+          if (doc.created_at) doc.created_at = new Date(doc.created_at);
+          if (doc.updated_at) doc.updated_at = new Date(doc.updated_at);
+
+          if (type) doc.type = type;
+
+          if (strategy === 'add') {
+            delete doc._id;
+            await db.collection(collection).insertOne(doc);
+          } else if (strategy === 'overwrite' && doc._id) {
+            await db.collection(collection).replaceOne({ _id: doc._id }, doc, { upsert: true });
+          } else if (strategy === 'skip') {
+            if (doc._id) {
+              const exists = await db.collection(collection).findOne({ _id: doc._id });
+              if (!exists) await db.collection(collection).insertOne(doc);
+            } else {
+              await db.collection(collection).insertOne(doc);
+            }
+          }
+          if (type === 'player') results.players++;
+          else if (type === 'bot') results.bots++;
+          else results.games++;
+        } catch (e) {
+          results.errors.push(`${type || 'game'}: ${e.message}`);
+        }
+      }
+    };
+
+    await importItems(players, 'players', 'username', 'player');
+    await importItems(bots, 'players', 'name', 'bot');
+    await importItems(games, 'games', null, null);
+
+    res.json({ message: 'Импорт завершён', results });
+  } catch (err) {
+    console.error('Import error:', err);
+    res.status(500).json({ error: 'Ошибка импорта' });
+  }
+});
+
 connectDB().then(() => {
   app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
