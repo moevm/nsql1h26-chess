@@ -1742,6 +1742,94 @@ function filterStatusHistory() {
   container.innerHTML = html;
 }
 
+// ===================== PLAYER EDIT =====================
+async function renderPlayerEdit(id) {
+  if (!state.user) {
+    showToast('Необходимо авторизоваться', 'error');
+    navigate('login');
+    return;
+  }
+
+  const main = document.getElementById('main-content');
+  try {
+    const player = await api(`/players/${id}`);
+
+    main.innerHTML = `
+      <div class="page-title">
+        <span>
+          <a onclick="navigate('player-detail',{id:'${player._id}'})" style="cursor:pointer;color:var(--primary);text-decoration:none;">← ${escapeHtml(player.username)}</a>
+          &nbsp;/ Редактирование
+        </span>
+      </div>
+      <div class="card" style="max-width:600px;">
+        <h3 class="card-title">Редактирование игрока</h3>
+        <form onsubmit="handleUpdatePlayer(event,'${player._id}')">
+          <div class="form-group">
+            <label>Логин</label>
+            <input type="text" class="form-control" value="${escapeHtml(player.username)}" disabled>
+          </div>
+          <div class="form-group">
+            <label>Email</label>
+            <input type="text" class="form-control" value="${escapeHtml(player.email)}" disabled>
+          </div>
+          <div class="form-group">
+            <label>Комментарий</label>
+            <textarea class="form-control" id="pe-comment" rows="3">${escapeHtml(player.comment || '')}</textarea>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Статус</label>
+              <select class="form-control" id="pe-status">
+                <option value="active" ${player.status === 'active' ? 'selected' : ''}>Активен</option>
+                <option value="banned" ${player.status === 'banned' ? 'selected' : ''}>Заблокирован</option>
+                <option value="deleted" ${player.status === 'deleted' ? 'selected' : ''}>Удалён</option>
+              </select>
+            </div>
+            <div class="form-group" id="pe-reason-group" style="display:none;">
+              <label>Причина изменения статуса</label>
+              <input type="text" class="form-control" id="pe-reason" placeholder="Укажите причину...">
+            </div>
+          </div>
+          <div class="form-actions">
+            <button type="submit" class="btn btn-primary" id="pe-btn">Сохранить</button>
+            <button type="button" class="btn btn-secondary" onclick="navigate('player-detail',{id:'${player._id}'})">Отмена</button>
+          </div>
+        </form>
+      </div>`;
+
+    const statusSelect = document.getElementById('pe-status');
+    const originalStatus = player.status;
+    statusSelect.addEventListener('change', () => {
+      const rg = document.getElementById('pe-reason-group');
+      rg.style.display = statusSelect.value !== originalStatus ? 'block' : 'none';
+    });
+  } catch (err) {
+    main.innerHTML = `<div class="empty-state"><p>Ошибка: ${escapeHtml(err.message)}</p></div>`;
+  }
+}
+
+async function handleUpdatePlayer(e, id) {
+  e.preventDefault();
+  const btn = document.getElementById('pe-btn');
+  btn.disabled = true;
+
+  try {
+    await api(`/players/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify({
+        comment: document.getElementById('pe-comment').value.trim(),
+        status: document.getElementById('pe-status').value,
+        reason: document.getElementById('pe-reason')?.value?.trim() || ''
+      })
+    });
+    showToast('Профиль обновлён!', 'success');
+    navigate('player-detail', { id });
+  } catch (err) {
+    showToast(err.message, 'error');
+    btn.disabled = false;
+  }
+}
+
 // ===================== INITIALIZATION =====================
 document.addEventListener('DOMContentLoaded', () => {
   updateHeader();
