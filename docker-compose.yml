@@ -21,7 +21,7 @@ services:
       JWT_SECRET: ${JWT_SECRET}
       PORT: ${PORT}
     ports:
-      - "3000:3000"
+      - "127.0.0.1:3000:3000"
     depends_on:
       - db
     networks:
@@ -34,7 +34,7 @@ services:
       dockerfile: Dockerfile
     container_name: circular-chess-frontend
     ports:
-      - "8080:80"
+      - "127.0.0.1:8080:80"
     depends_on:
       - backend
     networks:
