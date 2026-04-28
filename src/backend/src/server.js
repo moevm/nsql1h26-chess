@@ -423,3 +423,225 @@ app.get('/api/players/:id/status-history', optionalAuth, async (req, res) => {
     res.status(500).json({ error: 'Ошибка сервера' });
   }
 });
+
+// боты
+app.get('/api/bots', optionalAuth, async (req, res) => {
+  try {
+    const {
+      name, api_url, status, comment,
+      wins_min, wins_max, losses_min, losses_max,
+      draws_min, draws_max, total_min, total_max,
+      created_from, created_to,
+      sort_by, sort_dir,
+      page, limit: lim
+    } = req.query;
+
+    const filter = { type: 'bot' };
+
+    if (name) filter.name = { $regex: name, $options: 'i' };
+    if (api_url) filter.api_url = { $regex: api_url, $options: 'i' };
+    if (status) filter.status = status;
+    if (comment) filter.comment = { $regex: comment, $options: 'i' };
+
+    if (wins_min || wins_max) {
+      filter['stats.wins'] = {};
+      if (wins_min) filter['stats.wins'].$gte = parseInt(wins_min);
+      if (wins_max) filter['stats.wins'].$lte = parseInt(wins_max);
+    }
+    if (losses_min || losses_max) {
+      filter['stats.losses'] = {};
+      if (losses_min) filter['stats.losses'].$gte = parseInt(losses_min);
+      if (losses_max) filter['stats.losses'].$lte = parseInt(losses_max);
+    }
+    if (draws_min || draws_max) {
+      filter['stats.draws'] = {};
+      if (draws_min) filter['stats.draws'].$gte = parseInt(draws_min);
+      if (draws_max) filter['stats.draws'].$lte = parseInt(draws_max);
+    }
+    if (total_min || total_max) {
+      filter['stats.total_games'] = {};
+      if (total_min) filter['stats.total_games'].$gte = parseInt(total_min);
+      if (total_max) filter['stats.total_games'].$lte = parseInt(total_max);
+    }
+    if (created_from || created_to) {
+      filter.created_at = {};
+      if (created_from) filter.created_at.$gte = new Date(created_from);
+      if (created_to) filter.created_at.$lte = new Date(created_to + 'T23:59:59Z');
+    }
+
+    const pageNum = Math.max(1, parseInt(page) || 1);
+    const limit = Math.min(100, Math.max(1, parseInt(lim) || 20));
+    const skip = (pageNum - 1) * limit;
+
+    const sortField = sort_by || 'created_at';
+    const sortDirection = sort_dir === 'asc' ? 1 : -1;
+
+    const [bots, total] = await Promise.all([
+      db.collection('players').find(filter)
+        .sort({ [sortField]: sortDirection })
+        .skip(skip).limit(limit).toArray(),
+      db.collection('players').countDocuments(filter)
+    ]);
+
+    res.json({
+      data: bots,
+      pagination: { page: pageNum, limit, total, pages: Math.ceil(total / limit) }
+    });
+  } catch (err) {
+    console.error('Bots list error:', err);
+    res.status(500).json({ error: 'Ошибка сервера' });
+  }
+});
+
+app.get('/api/bots/:id', optionalAuth, async (req, res) => {
+  try {
+    if (!ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({ error: 'Некорректный ID' });
+    }
+    const bot = await db.collection('players').findOne({
+      _id: new ObjectId(req.params.id), type: 'bot'
+    });
+    if (!bot) return res.status(404).json({ error: 'Бот не найден' });
+    res.json(bot);
+  } catch (err) {
+    res.status(500).json({ error: 'Ошибка сервера' });
+  }
+});
+
+app.post('/api/bots', authMiddleware, async (req, res) => {
+  try {
+    const { name, api_url, comment } = req.body;
+
+    if (!name || !api_url) {
+      return res.status(400).json({ error: 'Название и API URL обязательны' });
+    }
+    if (name.length < 2) {
+      return res.status(400).json({ error: 'Название должно содержать минимум 2 символа' });
+    }
+
+    const existing = await db.collection('players').findOne({
+      type: 'bot', name: name
+    });
+    if (existing) {
+      return res.status(409).json({ error: 'Бот с таким названием уже существует' });
+    }
+
+    const now = new Date();
+    const result = await db.collection('players').insertOne({
+      type: 'bot',
+      name,
+      api_url,
+      status: 'draft',
+      comment: comment || '',
+      created_at: now,
+      updated_at: now,
+      stats: { wins: 0, losses: 0, draws: 0, total_games: 0, elo: 0 },
+      status_history: [{
+        changed_at: now,
+        old_status: null,
+        new_status: 'draft',
+        changed_by: new ObjectId(req.user.id),
+        reason: 'Создание бота'
+      }]
+    });
+
+    const bot = await db.collection('players').findOne({ _id: result.insertedId });
+    res.status(201).json(bot);
+  } catch (err) {
+    console.error('Create bot error:', err);
+    res.status(500).json({ error: 'Ошибка сервера' });
+  }
+});
+
+app.put('/api/bots/:id', authMiddleware, async (req, res) => {
+  try {
+    if (!ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({ error: 'Некорректный ID' });
+    }
+
+    const bot = await db.collection('players').findOne({
+      _id: new ObjectId(req.params.id), type: 'bot'
+    });
+    if (!bot) return res.status(404).json({ error: 'Бот не найден' });
+
+    const { name, api_url, comment, status } = req.body;
+    const updates = { updated_at: new Date() };
+    const pushOps = {};
+
+    if (name !== undefined) {
+      if (name.length < 2) {
+        return res.status(400).json({ error: 'Название должно содержать минимум 2 символа' });
+      }
+      const dup = await db.collection('players').findOne({
+        type: 'bot', name: name, _id: { $ne: bot._id }
+      });
+      if (dup) {
+        return res.status(409).json({ error: 'Бот с таким названием уже существует' });
+      }
+      updates.name = name;
+    }
+    if (api_url !== undefined) updates.api_url = api_url;
+    if (comment !== undefined) updates.comment = comment;
+
+    if (status !== undefined && status !== bot.status) {
+      const validStatuses = ['draft', 'testing', 'active', 'disabled'];
+      if (!validStatuses.includes(status)) {
+        return res.status(400).json({ error: 'Недопустимый статус' });
+      }
+      updates.status = status;
+      pushOps.status_history = {
+        changed_at: new Date(),
+        old_status: bot.status,
+        new_status: status,
+        changed_by: new ObjectId(req.user.id),
+        reason: req.body.reason || 'Изменение статуса'
+      };
+    }
+
+    const updateQuery = { $set: updates };
+    if (Object.keys(pushOps).length > 0) {
+      updateQuery.$push = pushOps;
+    }
+
+    await db.collection('players').updateOne(
+      { _id: bot._id },
+      updateQuery
+    );
+
+    const updated = await db.collection('players').findOne({ _id: bot._id });
+    res.json(updated);
+  } catch (err) {
+    console.error('Update bot error:', err);
+    res.status(500).json({ error: 'Ошибка сервера' });
+  }
+});
+
+app.delete('/api/bots/:id', authMiddleware, async (req, res) => {
+  try {
+    if (!ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({ error: 'Некорректный ID' });
+    }
+
+    const bot = await db.collection('players').findOne({
+      _id: new ObjectId(req.params.id), type: 'bot'
+    });
+    if (!bot) return res.status(404).json({ error: 'Бот не найден' });
+
+    
+    const activeGame = await db.collection('games').findOne({
+      status: { $in: ['created', 'in_progress'] },
+      $or: [
+        { player1_id: bot._id },
+        { player2_id: bot._id }
+      ]
+    });
+    if (activeGame) {
+      return res.status(409).json({ error: 'Нельзя удалить бота с активными партиями' });
+    }
+
+    await db.collection('players').deleteOne({ _id: bot._id });
+    res.json({ message: 'Бот удалён' });
+  } catch (err) {
+    res.status(500).json({ error: 'Ошибка сервера' });
+  }
+});
