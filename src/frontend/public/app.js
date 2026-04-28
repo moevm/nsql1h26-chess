@@ -15,7 +15,7 @@ async function api(path, options = {}) {
   }
 
   try {
-    const res = await fetch(`http://localhost:3000${API_BASE}${path}`, {
+    const res = await fetch(`${API_BASE}${path}`, {
       ...options,
       headers: { ...headers, ...options.headers }
     });
@@ -97,6 +97,8 @@ function navigate(page, params = {}) {
     case 'bot-create': renderBotCreate(); break;
     case 'bot-edit': renderBotEdit(params.id); break;
     case 'status-history': renderStatusHistory(params.type, params.id); break;
+    case 'player-edit': renderPlayerEdit(params.id); break;
+    case 'import-export': renderImportExport(); break;
     default: renderHome();
   }
 }
@@ -156,7 +158,7 @@ function paginationHTML(pagination, onPageChange) {
   html += `<button onclick="${onPageChange}(1)" ${page === 1 ? 'disabled' : ''}>«</button>`;
   html += `<button onclick="${onPageChange}(${page - 1})" ${page === 1 ? 'disabled' : ''}>‹</button>`;
 
-const start = Math.max(1, page - 2);
+  const start = Math.max(1, page - 2);
   const end = Math.min(pages, page + 2);
 
   for (let i = start; i <= end; i++) {
@@ -429,7 +431,7 @@ function applyGamesFilters() {
 
 function resetGamesFilters() {
   ['gf-mode', 'gf-status', 'gf-result', 'gf-player', 'gf-comment', 'gf-date-from', 'gf-date-to', 'gf-moves-min', 'gf-moves-max']
-    .forEach(id => { document.getElementById(id).value = ''; });
+      .forEach(id => { document.getElementById(id).value = ''; });
   gamesFilters = {};
   gamesPage = 1;
   loadGames();
@@ -608,13 +610,13 @@ async function renderGameCreate() {
     const participants = await api('/participants');
 
     const playerOptions = participants
-      .filter(p => p.type === 'player')
-      .map(p => `<option value="${p._id}">${escapeHtml(p.display_name)}</option>`)
-      .join('');
+        .filter(p => p.type === 'player')
+        .map(p => `<option value="${p._id}">${escapeHtml(p.display_name)}</option>`)
+        .join('');
 
     const allOptions = participants
-      .map(p => `<option value="${p._id}">${escapeHtml(p.display_name)}</option>`)
-      .join('');
+        .map(p => `<option value="${p._id}">${escapeHtml(p.display_name)}</option>`)
+        .join('');
 
     main.innerHTML = `
       <div class="page-title">
@@ -769,6 +771,13 @@ function renderPlayers() {
             </div>
           </div>
           <div class="filter-group">
+            <label>ELO</label>
+            <div class="filter-range">
+              <input type="number" id="pf-elo-min" placeholder="От" min="0">
+              <input type="number" id="pf-elo-max" placeholder="До" min="0">
+            </div>
+          </div>
+          <div class="filter-group">
             <label>Дата регистрации (от)</label>
             <input type="date" id="pf-date-from">
           </div>
@@ -805,6 +814,8 @@ function applyPlayersFilters() {
     draws_max: document.getElementById('pf-draws-max').value,
     total_min: document.getElementById('pf-total-min').value,
     total_max: document.getElementById('pf-total-max').value,
+    elo_min: document.getElementById('pf-elo-min').value,
+    elo_max: document.getElementById('pf-elo-max').value,
     created_from: document.getElementById('pf-date-from').value,
     created_to: document.getElementById('pf-date-to').value
   };
@@ -814,11 +825,12 @@ function applyPlayersFilters() {
 
 function resetPlayersFilters() {
   ['pf-username','pf-email','pf-status','pf-comment',
-   'pf-wins-min','pf-wins-max','pf-losses-min','pf-losses-max',
-   'pf-draws-min','pf-draws-max','pf-total-min','pf-total-max',
-   'pf-date-from','pf-date-to']
-    .forEach(id => { document.getElementById(id).value = ''; });
-playersFilters = {};
+    'pf-wins-min','pf-wins-max','pf-losses-min','pf-losses-max',
+    'pf-draws-min','pf-draws-max','pf-total-min','pf-total-max',
+    'pf-elo-min','pf-elo-max',
+    'pf-date-from','pf-date-to']
+      .forEach(id => { document.getElementById(id).value = ''; });
+  playersFilters = {};
   playersPage = 1;
   loadPlayers();
 }
@@ -876,6 +888,7 @@ async function loadPlayers() {
               <th onclick="sortPlayers('stats.losses')">Поражения ${sortIcon('stats.losses')}</th>
               <th onclick="sortPlayers('stats.draws')">Ничьи ${sortIcon('stats.draws')}</th>
               <th onclick="sortPlayers('stats.total_games')">Всего ${sortIcon('stats.total_games')}</th>
+              <th onclick="sortPlayers('stats.elo')">ELO ${sortIcon('stats.elo')}</th>
               <th onclick="sortPlayers('created_at')">Регистрация ${sortIcon('created_at')}</th>
             </tr>
           </thead>
@@ -891,6 +904,7 @@ async function loadPlayers() {
           <td>${p.stats.losses}</td>
           <td>${p.stats.draws}</td>
           <td>${p.stats.total_games}</td>
+          <td>${p.stats.elo ?? 0}</td>
           <td>${formatDateShort(p.created_at)}</td>
         </tr>`;
     });
@@ -957,6 +971,7 @@ async function renderPlayerDetail(id) {
         </div>
 
         <button class="btn btn-secondary btn-sm" onclick="navigate('status-history',{type:'player',id:'${player._id}'})">История статусов</button>
+        ${state.user ? `<button class="btn btn-secondary btn-sm" style="margin-left:8px;" onclick="navigate('player-edit',{id:'${player._id}'})">✏ Редактировать</button>` : ''}
       </div>
 
       <div class="card">
@@ -1012,8 +1027,8 @@ async function loadPlayerGames(playerId) {
       let outcome = '—';
       if (g.winner_id) {
         outcome = g.winner_id.toString() === playerId
-          ? '<span style="color:var(--success);font-weight:600;">Победа</span>'
-          : '<span style="color:var(--danger);font-weight:600;">Поражение</span>';
+            ? '<span style="color:var(--success);font-weight:600;">Победа</span>'
+            : '<span style="color:var(--danger);font-weight:600;">Поражение</span>';
       } else if (g.result === 'draw' || g.result === 'stalemate') {
         outcome = '<span style="color:var(--warning);font-weight:600;">Ничья</span>';
       }
@@ -1064,6 +1079,17 @@ function renderBots() {
           <div class="filter-group">
             <label>API URL</label>
             <input type="text" id="bf-api-url" placeholder="Поиск по URL...">
+          </div>
+          <div class="filter-group">
+            <label>Статус</label>
+            <select id="bf-status">
+              <option value="">Все</option>
+              <option value="draft">Черновик</option>
+              <option value="testing">Тестирование</option>
+              <option value="active">Активен</option>
+              <option value="disabled">Отключён</option>
+            </select>
+          </div>
           <div class="filter-group">
             <label>Победы</label>
             <div class="filter-range">
@@ -1083,6 +1109,13 @@ function renderBots() {
             <div class="filter-range">
               <input type="number" id="bf-draws-min" placeholder="От" min="0">
               <input type="number" id="bf-draws-max" placeholder="До" min="0">
+            </div>
+          </div>
+          <div class="filter-group">
+            <label>ELO</label>
+            <div class="filter-range">
+              <input type="number" id="bf-elo-min" placeholder="От" min="0">
+              <input type="number" id="bf-elo-max" placeholder="До" min="0">
             </div>
           </div>
           <div class="filter-group">
@@ -1112,12 +1145,15 @@ function applyBotsFilters() {
   botsFilters = {
     name: document.getElementById('bf-name').value,
     api_url: document.getElementById('bf-api-url').value,
+    status: document.getElementById('bf-status').value,
     wins_min: document.getElementById('bf-wins-min').value,
     wins_max: document.getElementById('bf-wins-max').value,
     losses_min: document.getElementById('bf-losses-min').value,
     losses_max: document.getElementById('bf-losses-max').value,
     draws_min: document.getElementById('bf-draws-min').value,
     draws_max: document.getElementById('bf-draws-max').value,
+    elo_min: document.getElementById('bf-elo-min').value,
+    elo_max: document.getElementById('bf-elo-max').value,
     created_from: document.getElementById('bf-date-from').value,
     created_to: document.getElementById('bf-date-to').value
   };
@@ -1126,11 +1162,11 @@ function applyBotsFilters() {
 }
 
 function resetBotsFilters() {
-  ['bf-name','bf-api-url',
-   'bf-wins-min','bf-wins-max','bf-losses-min','bf-losses-max',
-   'bf-draws-min','bf-draws-max',
-   'bf-date-from','bf-date-to']
-    .forEach(id => { document.getElementById(id).value = ''; });
+  ['bf-name','bf-api-url','bf-status',
+    'bf-wins-min','bf-wins-max','bf-losses-min','bf-losses-max',
+    'bf-draws-min','bf-draws-max','bf-elo-min','bf-elo-max',
+    'bf-date-from','bf-date-to']
+      .forEach(id => { document.getElementById(id).value = ''; });
   botsFilters = {};
   botsPage = 1;
   loadBots();
@@ -1189,6 +1225,7 @@ async function loadBots() {
               <th onclick="sortBots('stats.losses')">Поражения ${sortIcon('stats.losses')}</th>
               <th onclick="sortBots('stats.draws')">Ничьи ${sortIcon('stats.draws')}</th>
               <th onclick="sortBots('stats.total_games')">Всего ${sortIcon('stats.total_games')}</th>
+              <th onclick="sortBots('stats.elo')">ELO ${sortIcon('stats.elo')}</th>
               <th onclick="sortBots('created_at')">Создан ${sortIcon('created_at')}</th>
               <th>Действия</th>
             </tr>
@@ -1205,6 +1242,7 @@ async function loadBots() {
           <td>${b.stats.losses}</td>
           <td>${b.stats.draws}</td>
           <td>${b.stats.total_games}</td>
+          <td>${b.stats.elo ?? 0}</td>
           <td>${formatDateShort(b.created_at)}</td>
           <td>
             ${state.user ? `
@@ -1333,8 +1371,8 @@ async function loadBotGames(botId) {
       let outcome = '—';
       if (g.winner_id) {
         outcome = g.winner_id.toString() === botId
-          ? '<span style="color:var(--success);font-weight:600;">Победа</span>'
-          : '<span style="color:var(--danger);font-weight:600;">Поражение</span>';
+            ? '<span style="color:var(--success);font-weight:600;">Победа</span>'
+            : '<span style="color:var(--danger);font-weight:600;">Поражение</span>';
       } else if (g.result === 'draw' || g.result === 'stalemate') {
         outcome = '<span style="color:var(--warning);font-weight:600;">Ничья</span>';
       }
