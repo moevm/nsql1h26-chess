@@ -1830,6 +1830,99 @@ async function handleUpdatePlayer(e, id) {
   }
 }
 
+// ===================== IMPORT / EXPORT =====================
+function renderImportExport() {
+  const main = document.getElementById('main-content');
+  main.innerHTML = `
+    <div class="page-title"><span>Импорт / Экспорт данных</span></div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;max-width:900px;">
+      <div class="card">
+        <h3 class="card-title">Экспорт</h3>
+        <p style="color:var(--text-light);margin-bottom:16px;">Скачать все данные приложения (игроки, боты, партии) в формате JSON.</p>
+        <button class="btn btn-primary" onclick="handleExport()">Экспортировать всё</button>
+      </div>
+
+      <div class="card">
+        <h3 class="card-title">Импорт</h3>
+        <p style="color:var(--text-light);margin-bottom:12px;">Загрузить данные из JSON-файла, полученного при экспорте.</p>
+        <div class="form-group">
+          <label>Стратегия при конфликтах</label>
+          <select class="form-control" id="imp-strategy">
+            <option value="skip">Пропустить существующие</option>
+            <option value="overwrite">Перезаписать</option>
+            <option value="add">Добавить как новые</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Файл JSON</label>
+          <input type="file" class="form-control" id="imp-file" accept=".json">
+        </div>
+        <button class="btn btn-primary" onclick="handleImport()" ${state.user ? '' : 'disabled title="Требуется авторизация"'}>Импортировать всё</button>
+        <div id="imp-result" style="margin-top:12px;"></div>
+      </div>
+    </div>`;
+}
+
+async function handleExport() {
+  try {
+    const res = await fetch(`${API_BASE}/export`, {
+      headers: state.token ? { 'Authorization': `Bearer ${state.token}` } : {}
+    });
+    if (!res.ok) throw new Error('Ошибка экспорта');
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `chess-export-${new Date().toISOString().slice(0,10)}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    showToast('Экспорт успешен!', 'success');
+  } catch (err) {
+    showToast(err.message, 'error');
+  }
+}
+
+async function handleImport() {
+  if (!state.user) {
+    showToast('Необходимо авторизоваться', 'error');
+    return;
+  }
+  const fileInput = document.getElementById('imp-file');
+  const strategy = document.getElementById('imp-strategy').value;
+  const resultDiv = document.getElementById('imp-result');
+
+  if (!fileInput.files[0]) {
+    showToast('Выберите файл', 'error');
+    return;
+  }
+
+  try {
+    const text = await fileInput.files[0].text();
+    const data = JSON.parse(text);
+
+    const result = await api('/import', {
+      method: 'POST',
+      body: JSON.stringify({ ...data, strategy })
+    });
+
+    resultDiv.innerHTML = `
+      <div style="background:#f0fdf4;border:1px solid #86efac;border-radius:8px;padding:12px;">
+        <strong>Импорт завершён:</strong>
+        <ul style="margin-top:8px;padding-left:16px;">
+          <li>Игроков: ${result.results.players}</li>
+          <li>Ботов: ${result.results.bots}</li>
+          <li>Партий: ${result.results.games}</li>
+          ${result.results.errors.length > 0 ? `<li style="color:var(--danger)">Ошибок: ${result.results.errors.length}</li>` : ''}
+        </ul>
+      </div>`;
+    showToast('Импорт завершён!', 'success');
+  } catch (err) {
+    showToast(err.message, 'error');
+    resultDiv.innerHTML = `<div style="color:var(--danger)">Ошибка: ${escapeHtml(err.message)}</div>`;
+  }
+}
+
 // ===================== INITIALIZATION =====================
 document.addEventListener('DOMContentLoaded', () => {
   updateHeader();
