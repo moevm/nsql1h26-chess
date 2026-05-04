@@ -1136,11 +1136,32 @@ app.put('/api/players/:id', authMiddleware, async (req, res) => {
     });
     if (!player) return res.status(404).json({ error: 'Игрок не найден' });
 
-    const { comment, status, reason } = req.body;
+    const isSelf = req.user.id === req.params.id;
+    const { comment, status, reason, username, email } = req.body;
     const updates = { updated_at: new Date() };
     const pushOps = {};
 
     if (comment !== undefined) updates.comment = comment;
+
+    if (isSelf) {
+      if (username !== undefined && username !== player.username) {
+        if (username.length < 3) {
+          return res.status(400).json({ error: 'Логин должен содержать минимум 3 символа' });
+        }
+        const dup = await db.collection('players').findOne({
+          type: 'player', username, _id: { $ne: player._id }
+        });
+        if (dup) return res.status(409).json({ error: 'Этот логин уже используется' });
+        updates.username = username;
+      }
+      if (email !== undefined && email !== player.email) {
+        const dup = await db.collection('players').findOne({
+          type: 'player', email, _id: { $ne: player._id }
+        });
+        if (dup) return res.status(409).json({ error: 'Этот email уже используется' });
+        updates.email = email;
+      }
+    }
 
     if (status !== undefined && status !== player.status) {
       const validStatuses = ['active', 'banned', 'deleted'];
