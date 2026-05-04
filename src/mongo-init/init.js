@@ -466,3 +466,65 @@ db.games.insertOne({
     { changed_at: new Date(now.getTime() - 3 * 86400000 + 300000), old_status: "in_progress", new_status: "completed", changed_by: player1Id, reason: "Пат" }
   ]
 });
+
+// Партия с шахом и рокировкой (демо)
+db.games.insertOne({
+  mode: "hotseat",
+  status: "completed",
+  player1_id: adminId,
+  player2_id: player6Id,
+  winner_id: adminId,
+  result: "checkmate",
+  comment: "Пример: шах и рокировка",
+  created_at: new Date(now.getTime() - 2 * 86400000),
+  updated_at: new Date(now.getTime() - 2 * 86400000),
+  moves: [
+    { move_number: NumberInt(1), player_id: adminId, from_sq: "e2", to_sq: "e4", piece: "pawn", captured: null, check: false, castling: false, timestamp: new Date(now.getTime() - 2 * 86400000) },
+    { move_number: NumberInt(2), player_id: player6Id, from_sq: "e7", to_sq: "e5", piece: "pawn", captured: null, check: false, castling: false, timestamp: new Date(now.getTime() - 2 * 86400000 + 30000) },
+    { move_number: NumberInt(3), player_id: adminId, from_sq: "g1", to_sq: "f3", piece: "knight", captured: null, check: false, castling: false, timestamp: new Date(now.getTime() - 2 * 86400000 + 60000) },
+    { move_number: NumberInt(4), player_id: player6Id, from_sq: "b8", to_sq: "c6", piece: "knight", captured: null, check: false, castling: false, timestamp: new Date(now.getTime() - 2 * 86400000 + 90000) },
+    { move_number: NumberInt(5), player_id: adminId, from_sq: "f1", to_sq: "c4", piece: "bishop", captured: null, check: false, castling: false, timestamp: new Date(now.getTime() - 2 * 86400000 + 120000) },
+    { move_number: NumberInt(6), player_id: player6Id, from_sq: "g8", to_sq: "f6", piece: "knight", captured: null, check: false, castling: false, timestamp: new Date(now.getTime() - 2 * 86400000 + 150000) },
+    { move_number: NumberInt(7), player_id: adminId, from_sq: "e1", to_sq: "g1", piece: "king", captured: null, check: false, castling: true, timestamp: new Date(now.getTime() - 2 * 86400000 + 180000) },
+    { move_number: NumberInt(8), player_id: player6Id, from_sq: "f8", to_sq: "c5", piece: "bishop", captured: null, check: false, castling: false, timestamp: new Date(now.getTime() - 2 * 86400000 + 210000) },
+    { move_number: NumberInt(9), player_id: adminId, from_sq: "d1", to_sq: "h5", piece: "queen", captured: null, check: true, castling: false, timestamp: new Date(now.getTime() - 2 * 86400000 + 240000) },
+    { move_number: NumberInt(10), player_id: player6Id, from_sq: "g7", to_sq: "g6", piece: "pawn", captured: null, check: false, castling: false, timestamp: new Date(now.getTime() - 2 * 86400000 + 270000) },
+    { move_number: NumberInt(11), player_id: adminId, from_sq: "h5", to_sq: "f7", piece: "queen", captured: "pawn", check: true, castling: false, timestamp: new Date(now.getTime() - 2 * 86400000 + 300000) }
+  ],
+  status_history: [
+    { changed_at: new Date(now.getTime() - 2 * 86400000), old_status: null, new_status: "created", changed_by: adminId, reason: "Создание партии" },
+    { changed_at: new Date(now.getTime() - 2 * 86400000 + 1000), old_status: "created", new_status: "in_progress", changed_by: adminId, reason: "Старт" },
+    { changed_at: new Date(now.getTime() - 2 * 86400000 + 310000), old_status: "in_progress", new_status: "completed", changed_by: adminId, reason: "Мат" }
+  ]
+});
+
+// Партия с рокировкой для чёрных
+db.games.insertOne({
+  mode: "hotseat",
+  status: "completed",
+  player1_id: player2Id,
+  player2_id: player3Id,
+  winner_id: player3Id,
+  result: "checkmate",
+  comment: "Пример: рокировка чёрных и шах",
+  created_at: new Date(now.getTime() - 86400000),
+  updated_at: new Date(now.getTime() - 86400000),
+  moves: [
+    { move_number: NumberInt(1), player_id: player2Id, from_sq: "d2", to_sq: "d4", piece: "pawn", captured: null, check: false, castling: false, timestamp: new Date(now.getTime() - 86400000) },
+    { move_number: NumberInt(2), player_id: player3Id, from_sq: "d7", to_sq: "d5", piece: "pawn", captured: null, check: false, castling: false, timestamp: new Date(now.getTime() - 86400000 + 20000) },
+    { move_number: NumberInt(3), player_id: player2Id, from_sq: "c1", to_sq: "f4", piece: "bishop", captured: null, check: false, castling: false, timestamp: new Date(now.getTime() - 86400000 + 40000) },
+    { move_number: NumberInt(4), player_id: player3Id, from_sq: "c8", to_sq: "f5", piece: "bishop", captured: null, check: false, castling: false, timestamp: new Date(now.getTime() - 86400000 + 60000) },
+    { move_number: NumberInt(5), player_id: player2Id, from_sq: "g1", to_sq: "f3", piece: "knight", captured: null, check: false, castling: false, timestamp: new Date(now.getTime() - 86400000 + 80000) },
+    { move_number: NumberInt(6), player_id: player3Id, from_sq: "g8", to_sq: "f6", piece: "knight", captured: null, check: false, castling: false, timestamp: new Date(now.getTime() - 86400000 + 100000) },
+    { move_number: NumberInt(7), player_id: player2Id, from_sq: "e2", to_sq: "e3", piece: "pawn", captured: null, check: false, castling: false, timestamp: new Date(now.getTime() - 86400000 + 120000) },
+    { move_number: NumberInt(8), player_id: player3Id, from_sq: "e8", to_sq: "g8", piece: "king", captured: null, check: false, castling: true, timestamp: new Date(now.getTime() - 86400000 + 140000) },
+    { move_number: NumberInt(9), player_id: player2Id, from_sq: "f1", to_sq: "b5", piece: "bishop", captured: null, check: true, castling: false, timestamp: new Date(now.getTime() - 86400000 + 160000) },
+    { move_number: NumberInt(10), player_id: player3Id, from_sq: "c7", to_sq: "c6", piece: "pawn", captured: null, check: false, castling: false, timestamp: new Date(now.getTime() - 86400000 + 180000) },
+    { move_number: NumberInt(11), player_id: player3Id, from_sq: "d8", to_sq: "a5", piece: "queen", captured: null, check: true, castling: false, timestamp: new Date(now.getTime() - 86400000 + 220000) }
+  ],
+  status_history: [
+    { changed_at: new Date(now.getTime() - 86400000), old_status: null, new_status: "created", changed_by: player2Id, reason: "Создание партии" },
+    { changed_at: new Date(now.getTime() - 86400000 + 1000), old_status: "created", new_status: "in_progress", changed_by: player2Id, reason: "Старт" },
+    { changed_at: new Date(now.getTime() - 86400000 + 230000), old_status: "in_progress", new_status: "completed", changed_by: player3Id, reason: "Мат" }
+  ]
+});
