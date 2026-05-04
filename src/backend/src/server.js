@@ -459,6 +459,7 @@ app.get('/api/bots', optionalAuth, async (req, res) => {
       draws_min, draws_max, total_min, total_max,
       elo_min, elo_max,
       created_from, created_to,
+      updated_from, updated_to,
       sort_by, sort_dir,
       page, limit: lim
     } = req.query;
@@ -499,6 +500,11 @@ app.get('/api/bots', optionalAuth, async (req, res) => {
       filter.created_at = {};
       if (created_from) filter.created_at.$gte = new Date(created_from);
       if (created_to) filter.created_at.$lte = new Date(created_to + 'T23:59:59Z');
+    }
+    if (updated_from || updated_to) {
+      filter.updated_at = {};
+      if (updated_from) filter.updated_at.$gte = new Date(updated_from);
+      if (updated_to) filter.updated_at.$lte = new Date(updated_to + 'T23:59:59Z');
     }
 
     const pageNum = Math.max(1, parseInt(page) || 1);
@@ -685,6 +691,7 @@ app.get('/api/games', optionalAuth, async (req, res) => {
       mode, status, result, comment,
       player_name,
       created_from, created_to,
+      updated_from, updated_to,
       moves_min, moves_max,
       sort_by, sort_dir,
       page, limit: lim
@@ -701,6 +708,12 @@ app.get('/api/games', optionalAuth, async (req, res) => {
       filter.created_at = {};
       if (created_from) filter.created_at.$gte = new Date(created_from);
       if (created_to) filter.created_at.$lte = new Date(created_to + 'T23:59:59Z');
+    }
+
+    if (updated_from || updated_to) {
+      filter.updated_at = {};
+      if (updated_from) filter.updated_at.$gte = new Date(updated_from);
+      if (updated_to) filter.updated_at.$lte = new Date(updated_to + 'T23:59:59Z');
     }
 
     // Поиск по имени игрока — нужно сначала найти ID
@@ -732,41 +745,30 @@ app.get('/api/games', optionalAuth, async (req, res) => {
     const sortField = sort_by || 'created_at';
     const sortDirection = sort_dir === 'asc' ? 1 : -1;
 
-    // Фильтрация по количеству ходов через агрегацию
-    let games, total;
+    const pipeline = [
+      { $match: filter },
+      { $addFields: { moves_count: { $size: '$moves' } } }
+    ];
 
     if (moves_min || moves_max) {
-      const pipeline = [
-        { $match: filter },
-        { $addFields: { moves_count: { $size: '$moves' } } }
-      ];
-
       const movesFilter = {};
       if (moves_min) movesFilter.$gte = parseInt(moves_min);
       if (moves_max) movesFilter.$lte = parseInt(moves_max);
       pipeline.push({ $match: { moves_count: movesFilter } });
-
-      const countPipeline = [...pipeline, { $count: 'total' }];
-      const countResult = await db.collection('games').aggregate(countPipeline).toArray();
-      total = countResult.length > 0 ? countResult[0].total : 0;
-
-      pipeline.push(
-        { $sort: { [sortField]: sortDirection } },
-        { $skip: skip },
-        { $limit: limit },
-        { $project: { moves: 0 } }
-      );
-
-      games = await db.collection('games').aggregate(pipeline).toArray();
-    } else {
-      [games, total] = await Promise.all([
-        db.collection('games').find(filter)
-          .project({ moves: 0 })
-          .sort({ [sortField]: sortDirection })
-          .skip(skip).limit(limit).toArray(),
-        db.collection('games').countDocuments(filter)
-      ]);
     }
+
+    const countPipeline = [...pipeline, { $count: 'total' }];
+    const countResult = await db.collection('games').aggregate(countPipeline).toArray();
+    const total = countResult.length > 0 ? countResult[0].total : 0;
+
+    pipeline.push(
+      { $sort: { [sortField]: sortDirection } },
+      { $skip: skip },
+      { $limit: limit },
+      { $project: { moves: 0 } }
+    );
+
+    const games = await db.collection('games').aggregate(pipeline).toArray();
 
     // Подгружаем имена участников
     const playerIds = new Set();
@@ -789,8 +791,7 @@ app.get('/api/games', optionalAuth, async (req, res) => {
       ...g,
       player1_name: playerMap[g.player1_id.toString()] || 'Неизвестен',
       player2_name: playerMap[g.player2_id.toString()] || 'Неизвестен',
-      winner_name: g.winner_id ? (playerMap[g.winner_id.toString()] || 'Неизвестен') : null,
-      moves_count: g.moves_count || undefined
+      winner_name: g.winner_id ? (playerMap[g.winner_id.toString()] || 'Неизвестен') : null
     }));
 
     res.json({
@@ -893,7 +894,7 @@ app.get('/api/games/:id/status-history', optionalAuth, async (req, res) => {
 
     const game = await db.collection('games').findOne(
       { _id: new ObjectId(req.params.id) },
-      { projection: { status_history: 1 } }
+      { projection: { status_history: 1, created_at: 1 } }
     );
     if (!game) return res.status(404).json({ error: 'Партия не найдена' });
 
@@ -913,6 +914,7 @@ app.get('/api/games/:id/status-history', optionalAuth, async (req, res) => {
 
     res.json({
       entity_type: 'game',
+      entity_name: `Партия от ${game.created_at ? new Date(game.created_at).toLocaleDateString('ru-RU') : ''}`,
       history: game.status_history.map(h => ({
         ...h,
         changed_by_name: h.changed_by ? (changerMap[h.changed_by.toString()] || 'Неизвестен') : null
@@ -1039,9 +1041,15 @@ app.put('/api/games/:id', authMiddleware, async (req, res) => {
       const p2 = await db.collection('players').findOne({ _id: new ObjectId(player2_id) });
       if (!p2) return res.status(400).json({ error: 'Игрок 2 не найден' });
     }
-    if (winner_id && winner_id !== 'null') {
+    if (winner_id && winner_id !== 'null' && winner_id !== '') {
       const w = await db.collection('players').findOne({ _id: new ObjectId(winner_id) });
       if (!w) return res.status(400).json({ error: 'Победитель не найден' });
+
+      const effectiveP1 = player1_id || game.player1_id.toString();
+      const effectiveP2 = player2_id || game.player2_id.toString();
+      if (winner_id !== effectiveP1 && winner_id !== effectiveP2) {
+        return res.status(400).json({ error: 'Победитель должен быть одним из участников партии' });
+      }
     }
 
     const updateFields = { updated_at: new Date() };
@@ -1261,17 +1269,18 @@ app.post('/api/import', authMiddleware, async (req, res) => {
 
           if (type) doc.type = type;
 
+          const opts = { bypassDocumentValidation: true };
           if (strategy === 'add') {
             delete doc._id;
-            await db.collection(collection).insertOne(doc);
+            await db.collection(collection).insertOne(doc, opts);
           } else if (strategy === 'overwrite' && doc._id) {
-            await db.collection(collection).replaceOne({ _id: doc._id }, doc, { upsert: true });
+            await db.collection(collection).replaceOne({ _id: doc._id }, doc, { upsert: true, bypassDocumentValidation: true });
           } else if (strategy === 'skip') {
             if (doc._id) {
               const exists = await db.collection(collection).findOne({ _id: doc._id });
-              if (!exists) await db.collection(collection).insertOne(doc);
+              if (!exists) await db.collection(collection).insertOne(doc, opts);
             } else {
-              await db.collection(collection).insertOne(doc);
+              await db.collection(collection).insertOne(doc, opts);
             }
           }
           if (type === 'player') results.players++;
