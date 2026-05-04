@@ -345,17 +345,36 @@ app.get('/api/players/:id/games', optionalAuth, async (req, res) => {
     const limit = Math.min(100, Math.max(1, parseInt(req.query.limit) || 10));
     const skip = (page - 1) * limit;
 
+    const { mode, status, result, created_from, created_to } = req.query;
+
     const filter = {
       $or: [{ player1_id: playerId }, { player2_id: playerId }]
     };
 
-    const [games, total] = await Promise.all([
-      db.collection('games').find(filter)
-        .project({ moves: 0 })
-        .sort({ created_at: -1 })
-        .skip(skip).limit(limit).toArray(),
-      db.collection('games').countDocuments(filter)
+    if (mode) filter.mode = mode;
+    if (status) filter.status = status;
+    if (result) filter.result = result;
+    if (created_from || created_to) {
+      filter.created_at = {};
+      if (created_from) filter.created_at.$gte = new Date(created_from);
+      if (created_to) filter.created_at.$lte = new Date(created_to + 'T23:59:59Z');
+    }
+
+    const pipeline = [
+      { $match: filter },
+      { $addFields: { moves_count: { $size: '$moves' } } },
+      { $sort: { created_at: -1 } },
+      { $skip: skip },
+      { $limit: limit },
+      { $project: { moves: 0 } }
+    ];
+
+    const countPipeline = [{ $match: filter }, { $count: 'total' }];
+    const [games, countResult] = await Promise.all([
+      db.collection('games').aggregate(pipeline).toArray(),
+      db.collection('games').aggregate(countPipeline).toArray()
     ]);
+    const total = countResult.length > 0 ? countResult[0].total : 0;
 
     // Подгружаем имена игроков
     const playerIds = new Set();
