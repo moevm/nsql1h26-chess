@@ -6,38 +6,14 @@ const jwt = require('jsonwebtoken');
 const { PORT, JWT_SECRET } = require('./config/env');
 const { connectDB } = require('./db/connection');
 const { seedRoles, seedPasswords } = require('./db/seed');
+const { authMiddleware, optionalAuth } = require('./middleware/auth');
+const { requireAdmin } = require('./middleware/admin');
 
 const app = express();
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 
 let db;
-
-// middleware для обработки jwt токенов
-function authMiddleware(req, res, next) {
-  const header = req.headers.authorization;
-  if (!header || !header.startsWith('Bearer ')) {
-    return res.status(401).json({ error: 'Требуется авторизация' });
-  }
-  try {
-    const token = header.split(' ')[1];
-    const decoded = jwt.verify(token, JWT_SECRET);
-    req.user = decoded;
-    next();
-  } catch {
-    return res.status(401).json({ error: 'Недействительный токен' });
-  }
-}
-
-function optionalAuth(req, res, next) {
-  const header = req.headers.authorization;
-  if (header && header.startsWith('Bearer ')) {
-    try {
-      req.user = jwt.verify(header.split(' ')[1], JWT_SECRET);
-    } catch {}
-  }
-  next();
-}
 
 // роуты для аутентификации
 app.post('/api/auth/login', async (req, res) => {
@@ -68,8 +44,9 @@ app.post('/api/auth/login', async (req, res) => {
       return res.status(403).json({ error: 'Аккаунт заблокирован' });
     }
 
+    const role = player.role || 'user';
     const token = jwt.sign(
-      { id: player._id.toString(), username: player.username, email: player.email },
+      { id: player._id.toString(), username: player.username, email: player.email, role },
       JWT_SECRET,
       { expiresIn: '24h' } // мб побольше сделать
     );
@@ -82,7 +59,8 @@ app.post('/api/auth/login', async (req, res) => {
         email: player.email,
         status: player.status,
         stats: player.stats,
-        comment: player.comment
+        comment: player.comment,
+        role
       }
     });
   } catch (err) {
@@ -125,11 +103,13 @@ app.post('/api/auth/register', async (req, res) => {
     const hash = await bcrypt.hash(password, 10); 
     const now = new Date();
 
+    const role = 'user';
     const result = await db.collection('players').insertOne({
       type: 'player',
       username,
       email,
       password_hash: hash,
+      role,
       status: 'active',
       comment: '',
       created_at: now,
@@ -145,7 +125,7 @@ app.post('/api/auth/register', async (req, res) => {
     });
 
     const token = jwt.sign(
-      { id: result.insertedId.toString(), username, email },
+      { id: result.insertedId.toString(), username, email, role },
       JWT_SECRET,
       { expiresIn: '24h' } // ¯\_(ツ)_/¯
     );
@@ -157,6 +137,7 @@ app.post('/api/auth/register', async (req, res) => {
         username,
         email,
         status: 'active',
+        role,
         stats: { wins: 0, losses: 0, draws: 0, total_games: 0, elo: 0},
         comment: ''
       }
@@ -181,6 +162,7 @@ app.get('/api/auth/me', authMiddleware, async (req, res) => {
       status: player.status,
       stats: player.stats,
       comment: player.comment,
+      role: player.role || 'user',
       created_at: player.created_at
     });
   } catch (err) {
@@ -499,7 +481,7 @@ app.get('/api/bots/:id', optionalAuth, async (req, res) => {
   }
 });
 
-app.post('/api/bots', authMiddleware, async (req, res) => {
+app.post('/api/bots', authMiddleware, requireAdmin, async (req, res) => {
   try {
     const { name, api_url, comment } = req.body;
 
@@ -544,7 +526,7 @@ app.post('/api/bots', authMiddleware, async (req, res) => {
   }
 });
 
-app.put('/api/bots/:id', authMiddleware, async (req, res) => {
+app.put('/api/bots/:id', authMiddleware, requireAdmin, async (req, res) => {
   try {
     if (!ObjectId.isValid(req.params.id)) {
       return res.status(400).json({ error: 'Некорректный ID' });
@@ -607,7 +589,7 @@ app.put('/api/bots/:id', authMiddleware, async (req, res) => {
   }
 });
 
-app.delete('/api/bots/:id', authMiddleware, async (req, res) => {
+app.delete('/api/bots/:id', authMiddleware, requireAdmin, async (req, res) => {
   try {
     if (!ObjectId.isValid(req.params.id)) {
       return res.status(400).json({ error: 'Некорректный ID' });
@@ -1042,7 +1024,7 @@ app.put('/api/games/:id', authMiddleware, async (req, res) => {
   }
 });
 
-app.delete('/api/games/:id', authMiddleware, async (req, res) => {
+app.delete('/api/games/:id', authMiddleware, requireAdmin, async (req, res) => {
   try {
     const gameId = new ObjectId(req.params.id);
     const game = await db.collection('games').findOne({ _id: gameId });
@@ -1197,7 +1179,7 @@ app.get('/api/export', optionalAuth, async (req, res) => {
   }
 });
 
-app.post('/api/import', authMiddleware, async (req, res) => {
+app.post('/api/import', authMiddleware, requireAdmin, async (req, res) => {
   try {
     const { players, bots, games, strategy = 'skip' } = req.body;
 
