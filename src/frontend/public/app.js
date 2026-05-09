@@ -727,7 +727,7 @@ async function renderGameDetail(id) {
         </div>
         <div style="margin-top:16px;">
           <button class="btn btn-secondary btn-sm" onclick="navigate('status-history',{type:'game',id:'${game._id}'})">История статусов</button>
-          <button class="btn btn-secondary btn-sm" onclick="navigate('game-edit',{id:'${id}'})">Редактировать</button>
+          ${(state.user && (state.user.role === 'admin' || state.user.id === game.player1_id.toString() || state.user.id === game.player2_id.toString())) ? `<button class="btn btn-secondary btn-sm" onclick="navigate('game-edit',{id:'${id}'})">Редактировать</button>` : ''}
         </div>
       </div>
 
@@ -1196,7 +1196,7 @@ async function renderPlayerDetail(id) {
         </div>
 
         <button class="btn btn-secondary btn-sm" onclick="navigate('status-history',{type:'player',id:'${player._id}'})">История статусов</button>
-        ${state.user ? `<button class="btn btn-secondary btn-sm" style="margin-left:8px;" onclick="navigate('player-edit',{id:'${player._id}'})">✏ Редактировать</button>` : ''}
+        ${(state.user && (state.user.id === player._id.toString() || (state.user.role === 'admin' && player.role !== 'admin'))) ? `<button class="btn btn-secondary btn-sm" style="margin-left:8px;" onclick="navigate('player-edit',{id:'${player._id}'})">✏ Редактировать</button>` : ''}
       </div>
 
       <div class="card">
@@ -1630,7 +1630,7 @@ async function renderBotDetail(id) {
             <div class="label">Всего партий</div>
           </div>
           <div class="profile-stat">
-            <div class="value" style="color:var(--primary)">${bot.stats.elo}%</div>
+            <div class="value" style="color:var(--primary)">${bot.stats.elo}</div>
             <div class="label">ELO</div>
           </div>
         </div>
@@ -2085,6 +2085,18 @@ async function renderPlayerEdit(id) {
     const player = await api(`/players/${id}`);
 
     const isSelf = state.user && state.user.id === player._id.toString();
+    const isAdmin = state.user && state.user.role === 'admin';
+
+    if (!isSelf && !isAdmin) {
+      showToast('Нет прав для редактирования', 'error');
+      navigate('player-detail', { id });
+      return;
+    }
+    if (isAdmin && !isSelf && player.role === 'admin') {
+      showToast('Нельзя редактировать другого администратора', 'error');
+      navigate('player-detail', { id });
+      return;
+    }
 
     main.innerHTML = `
       <div class="page-title">
@@ -2098,12 +2110,12 @@ async function renderPlayerEdit(id) {
         <form onsubmit="handleUpdatePlayer(event,'${player._id}')">
           <div class="form-group">
             <label>Логин</label>
-            <input type="text" class="form-control" id="pe-username" value="${escapeHtml(player.username)}" ${isSelf ? '' : 'disabled'}>
+            <input type="text" class="form-control" id="pe-username" value="${escapeHtml(player.username)}" ${(isSelf || isAdmin) ? '' : 'disabled'}>
             ${isSelf ? '<small style="color:var(--text-light)">Изменение логина потребует повторного входа</small>' : ''}
           </div>
           <div class="form-group">
             <label>Email</label>
-            <input type="email" class="form-control" id="pe-email" value="${escapeHtml(player.email)}" ${isSelf ? '' : 'disabled'}>
+            <input type="email" class="form-control" id="pe-email" value="${escapeHtml(player.email)}" ${(isSelf || isAdmin) ? '' : 'disabled'}>
           </div>
           <div class="form-group">
             <label>Комментарий</label>
@@ -2112,7 +2124,7 @@ async function renderPlayerEdit(id) {
           <div class="form-row">
             <div class="form-group">
               <label>Статус</label>
-              <select class="form-control" id="pe-status">
+              <select class="form-control" id="pe-status" ${isAdmin ? '' : 'disabled'}>
                 <option value="active" ${player.status === 'active' ? 'selected' : ''}>Активен</option>
                 <option value="banned" ${player.status === 'banned' ? 'selected' : ''}>Заблокирован</option>
                 <option value="deleted" ${player.status === 'deleted' ? 'selected' : ''}>Удалён</option>
@@ -2258,7 +2270,7 @@ async function renderGameEdit(id) {
               </select>
             </div>
 
-            <div class="form-group">
+            <div class="form-group" id="ge-result-group" style="display:${(game.status === 'completed' || game.status === 'abandoned') ? 'block' : 'none'};">
               <label>Результат</label>
               <select id="ge-result" class="form-control">
                 <option value="" ${!game.result ? 'selected' : ''}>Не определён</option>
@@ -2297,13 +2309,15 @@ async function renderGameEdit(id) {
     // Показываем поле причины при смене статуса
     const statusSelect = document.getElementById('ge-status');
     const originalStatus = game.status;
+    const resultGroup = document.getElementById('ge-result-group');
+    const resultSelect = document.getElementById('ge-result');
     statusSelect.addEventListener('change', () => {
       const reasonGroup = document.getElementById('ge-reason-group');
-      if (statusSelect.value !== originalStatus) {
-        reasonGroup.style.display = 'block';
-      } else {
-        reasonGroup.style.display = 'none';
-      }
+      reasonGroup.style.display = statusSelect.value !== originalStatus ? 'block' : 'none';
+
+      const showResult = statusSelect.value === 'completed' || statusSelect.value === 'abandoned';
+      resultGroup.style.display = showResult ? 'block' : 'none';
+      if (!showResult) resultSelect.value = '';
     });
 
     // Устанавливаем игрока для нового хода
