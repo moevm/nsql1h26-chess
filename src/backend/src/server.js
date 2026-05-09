@@ -4,16 +4,16 @@ const { ObjectId } = require('mongodb');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { PORT, JWT_SECRET } = require('./config/env');
-const { connectDB } = require('./db/connection');
+const { connectDB, getDb } = require('./db/connection');
 const { seedRoles, seedPasswords } = require('./db/seed');
 const { authMiddleware, optionalAuth } = require('./middleware/auth');
 const { requireAdmin } = require('./middleware/admin');
+const { playersCol } = require('./models/playerModel');
+const { gamesCol } = require('./models/gameModel');
 
 const app = express();
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
-
-let db;
 
 // роуты для аутентификации
 app.post('/api/auth/login', async (req, res) => {
@@ -23,7 +23,7 @@ app.post('/api/auth/login', async (req, res) => {
       return res.status(400).json({ error: 'Введите логин и пароль' });
     }
 
-    const player = await db.collection('players').findOne({
+    const player = await playersCol().findOne({
       type: 'player',
       $or: [
         { username: login },
@@ -86,14 +86,14 @@ app.post('/api/auth/register', async (req, res) => {
       return res.status(400).json({ error: 'Пароль должен содержать минимум 6 символов' });
     }
 
-    const existingUsername = await db.collection('players').findOne({
+    const existingUsername = await playersCol().findOne({
       type: 'player', username: username
     });
     if (existingUsername) {
       return res.status(409).json({ error: 'Этот логин уже используется' });
     }
 
-    const existingEmail = await db.collection('players').findOne({
+    const existingEmail = await playersCol().findOne({
       type: 'player', email: email
     });
     if (existingEmail) {
@@ -104,7 +104,7 @@ app.post('/api/auth/register', async (req, res) => {
     const now = new Date();
 
     const role = 'user';
-    const result = await db.collection('players').insertOne({
+    const result = await playersCol().insertOne({
       type: 'player',
       username,
       email,
@@ -150,7 +150,7 @@ app.post('/api/auth/register', async (req, res) => {
 
 app.get('/api/auth/me', authMiddleware, async (req, res) => {
   try {
-    const player = await db.collection('players').findOne({
+    const player = await playersCol().findOne({
       _id: new ObjectId(req.user.id)
     });
     if (!player) return res.status(404).json({ error: 'Пользователь не найден' });
@@ -234,9 +234,9 @@ app.get('/api/players', optionalAuth, async (req, res) => {
     };
 
     const [players, total] = await Promise.all([
-      db.collection('players').find(filter).project(projection)
+      playersCol().find(filter).project(projection)
         .sort(sort).skip(skip).limit(limit).toArray(),
-      db.collection('players').countDocuments(filter)
+      playersCol().countDocuments(filter)
     ]);
 
     res.json({
@@ -259,7 +259,7 @@ app.get('/api/players/:id', optionalAuth, async (req, res) => {
     if (!ObjectId.isValid(req.params.id)) {
       return res.status(400).json({ error: 'Некорректный ID' });
     }
-    const player = await db.collection('players').findOne(
+    const player = await playersCol().findOne(
       { _id: new ObjectId(req.params.id), type: 'player' },
       { projection: { password_hash: 0 } }
     );
@@ -306,8 +306,8 @@ app.get('/api/players/:id/games', optionalAuth, async (req, res) => {
 
     const countPipeline = [{ $match: filter }, { $count: 'total' }];
     const [games, countResult] = await Promise.all([
-      db.collection('games').aggregate(pipeline).toArray(),
-      db.collection('games').aggregate(countPipeline).toArray()
+      gamesCol().aggregate(pipeline).toArray(),
+      gamesCol().aggregate(countPipeline).toArray()
     ]);
     const total = countResult.length > 0 ? countResult[0].total : 0;
 
@@ -319,7 +319,7 @@ app.get('/api/players/:id/games', optionalAuth, async (req, res) => {
       if (g.winner_id) playerIds.add(g.winner_id.toString()); // тк победителя может не быть
     });
 
-    const players = await db.collection('players').find({
+    const players = await playersCol().find({
       _id: { $in: Array.from(playerIds).map(id => new ObjectId(id)) }
     }).project({ username: 1, name: 1, type: 1 }).toArray();
 
@@ -349,7 +349,7 @@ app.get('/api/players/:id/status-history', optionalAuth, async (req, res) => {
     if (!ObjectId.isValid(req.params.id)) {
       return res.status(400).json({ error: 'Некорректный ID' });
     }
-    const player = await db.collection('players').findOne(
+    const player = await playersCol().findOne(
       { _id: new ObjectId(req.params.id) },
       { projection: { status_history: 1, username: 1, name: 1, type: 1 } }
     );
@@ -362,7 +362,7 @@ app.get('/api/players/:id/status-history', optionalAuth, async (req, res) => {
 
     let changerMap = {};
     if (changerIds.length > 0) {
-      const changers = await db.collection('players').find({
+      const changers = await playersCol().find({
         _id: { $in: changerIds }
       }).project({ username: 1, name: 1, type: 1 }).toArray();
       changers.forEach(c => {
@@ -450,10 +450,10 @@ app.get('/api/bots', optionalAuth, async (req, res) => {
     const sortDirection = sort_dir === 'asc' ? 1 : -1;
 
     const [bots, total] = await Promise.all([
-      db.collection('players').find(filter)
+      playersCol().find(filter)
         .sort({ [sortField]: sortDirection })
         .skip(skip).limit(limit).toArray(),
-      db.collection('players').countDocuments(filter)
+      playersCol().countDocuments(filter)
     ]);
 
     res.json({
@@ -471,7 +471,7 @@ app.get('/api/bots/:id', optionalAuth, async (req, res) => {
     if (!ObjectId.isValid(req.params.id)) {
       return res.status(400).json({ error: 'Некорректный ID' });
     }
-    const bot = await db.collection('players').findOne({
+    const bot = await playersCol().findOne({
       _id: new ObjectId(req.params.id), type: 'bot'
     });
     if (!bot) return res.status(404).json({ error: 'Бот не найден' });
@@ -492,7 +492,7 @@ app.post('/api/bots', authMiddleware, requireAdmin, async (req, res) => {
       return res.status(400).json({ error: 'Название должно содержать минимум 2 символа' });
     }
 
-    const existing = await db.collection('players').findOne({
+    const existing = await playersCol().findOne({
       type: 'bot', name: name
     });
     if (existing) {
@@ -500,7 +500,7 @@ app.post('/api/bots', authMiddleware, requireAdmin, async (req, res) => {
     }
 
     const now = new Date();
-    const result = await db.collection('players').insertOne({
+    const result = await playersCol().insertOne({
       type: 'bot',
       name,
       api_url,
@@ -518,7 +518,7 @@ app.post('/api/bots', authMiddleware, requireAdmin, async (req, res) => {
       }]
     });
 
-    const bot = await db.collection('players').findOne({ _id: result.insertedId });
+    const bot = await playersCol().findOne({ _id: result.insertedId });
     res.status(201).json(bot);
   } catch (err) {
     console.error('Create bot error:', err);
@@ -532,7 +532,7 @@ app.put('/api/bots/:id', authMiddleware, requireAdmin, async (req, res) => {
       return res.status(400).json({ error: 'Некорректный ID' });
     }
 
-    const bot = await db.collection('players').findOne({
+    const bot = await playersCol().findOne({
       _id: new ObjectId(req.params.id), type: 'bot'
     });
     if (!bot) return res.status(404).json({ error: 'Бот не найден' });
@@ -545,7 +545,7 @@ app.put('/api/bots/:id', authMiddleware, requireAdmin, async (req, res) => {
       if (name.length < 2) {
         return res.status(400).json({ error: 'Название должно содержать минимум 2 символа' });
       }
-      const dup = await db.collection('players').findOne({
+      const dup = await playersCol().findOne({
         type: 'bot', name: name, _id: { $ne: bot._id }
       });
       if (dup) {
@@ -576,12 +576,12 @@ app.put('/api/bots/:id', authMiddleware, requireAdmin, async (req, res) => {
       updateQuery.$push = pushOps;
     }
 
-    await db.collection('players').updateOne(
+    await playersCol().updateOne(
       { _id: bot._id },
       updateQuery
     );
 
-    const updated = await db.collection('players').findOne({ _id: bot._id });
+    const updated = await playersCol().findOne({ _id: bot._id });
     res.json(updated);
   } catch (err) {
     console.error('Update bot error:', err);
@@ -595,13 +595,13 @@ app.delete('/api/bots/:id', authMiddleware, requireAdmin, async (req, res) => {
       return res.status(400).json({ error: 'Некорректный ID' });
     }
 
-    const bot = await db.collection('players').findOne({
+    const bot = await playersCol().findOne({
       _id: new ObjectId(req.params.id), type: 'bot'
     });
     if (!bot) return res.status(404).json({ error: 'Бот не найден' });
 
     
-    const activeGame = await db.collection('games').findOne({
+    const activeGame = await gamesCol().findOne({
       status: { $in: ['created', 'in_progress'] },
       $or: [
         { player1_id: bot._id },
@@ -612,7 +612,7 @@ app.delete('/api/bots/:id', authMiddleware, requireAdmin, async (req, res) => {
       return res.status(409).json({ error: 'Нельзя удалить бота с активными партиями' });
     }
 
-    await db.collection('players').deleteOne({ _id: bot._id });
+    await playersCol().deleteOne({ _id: bot._id });
     res.json({ message: 'Бот удалён' });
   } catch (err) {
     res.status(500).json({ error: 'Ошибка сервера' });
@@ -653,7 +653,7 @@ app.get('/api/games', optionalAuth, async (req, res) => {
 
     // Поиск по имени игрока — нужно сначала найти ID
     if (player_name) {
-      const matchingPlayers = await db.collection('players').find({
+      const matchingPlayers = await playersCol().find({
         $or: [
           { type: 'player', username: { $regex: player_name, $options: 'i' } },
           { type: 'bot', name: { $regex: player_name, $options: 'i' } }
@@ -693,7 +693,7 @@ app.get('/api/games', optionalAuth, async (req, res) => {
     }
 
     const countPipeline = [...pipeline, { $count: 'total' }];
-    const countResult = await db.collection('games').aggregate(countPipeline).toArray();
+    const countResult = await gamesCol().aggregate(countPipeline).toArray();
     const total = countResult.length > 0 ? countResult[0].total : 0;
 
     pipeline.push(
@@ -703,7 +703,7 @@ app.get('/api/games', optionalAuth, async (req, res) => {
       { $project: { moves: 0 } }
     );
 
-    const games = await db.collection('games').aggregate(pipeline).toArray();
+    const games = await gamesCol().aggregate(pipeline).toArray();
 
     // Подгружаем имена участников
     const playerIds = new Set();
@@ -713,7 +713,7 @@ app.get('/api/games', optionalAuth, async (req, res) => {
       if (g.winner_id) playerIds.add(g.winner_id.toString());
     });
 
-    const players = await db.collection('players').find({
+    const players = await playersCol().find({
       _id: { $in: Array.from(playerIds).map(id => new ObjectId(id)) }
     }).project({ username: 1, name: 1, type: 1 }).toArray();
 
@@ -745,7 +745,7 @@ app.get('/api/games/:id', optionalAuth, async (req, res) => {
       return res.status(400).json({ error: 'Некорректный ID' });
     }
 
-    const game = await db.collection('games').findOne({
+    const game = await gamesCol().findOne({
       _id: new ObjectId(req.params.id)
     });
     if (!game) return res.status(404).json({ error: 'Партия не найдена' });
@@ -754,7 +754,7 @@ app.get('/api/games/:id', optionalAuth, async (req, res) => {
     const ids = [game.player1_id, game.player2_id];
     if (game.winner_id) ids.push(game.winner_id);
 
-    const players = await db.collection('players').find({
+    const players = await playersCol().find({
       _id: { $in: ids }
     }).project({ username: 1, name: 1, type: 1 }).toArray();
 
@@ -768,7 +768,7 @@ app.get('/api/games/:id', optionalAuth, async (req, res) => {
 
     // Названия для ходов
     const movePlayerIds = [...new Set(game.moves.map(m => m.player_id.toString()))];
-    const movePlayers = await db.collection('players').find({
+    const movePlayers = await playersCol().find({
       _id: { $in: movePlayerIds.map(id => new ObjectId(id)) }
     }).project({ username: 1, name: 1, type: 1 }).toArray();
 
@@ -786,7 +786,7 @@ app.get('/api/games/:id', optionalAuth, async (req, res) => {
       .filter(h => h.changed_by)
       .map(h => h.changed_by);
     if (changerIds.length > 0) {
-      const changers = await db.collection('players').find({
+      const changers = await playersCol().find({
         _id: { $in: changerIds }
       }).project({ username: 1, name: 1, type: 1 }).toArray();
       changers.forEach(c => {
@@ -827,7 +827,7 @@ app.get('/api/games/:id/status-history', optionalAuth, async (req, res) => {
       return res.status(400).json({ error: 'Некорректный ID' });
     }
 
-    const game = await db.collection('games').findOne(
+    const game = await gamesCol().findOne(
       { _id: new ObjectId(req.params.id) },
       { projection: { status_history: 1, created_at: 1 } }
     );
@@ -839,7 +839,7 @@ app.get('/api/games/:id/status-history', optionalAuth, async (req, res) => {
 
     let changerMap = {};
     if (changerIds.length > 0) {
-      const changers = await db.collection('players').find({
+      const changers = await playersCol().find({
         _id: { $in: changerIds }
       }).project({ username: 1, name: 1, type: 1 }).toArray();
       changers.forEach(c => {
@@ -877,8 +877,8 @@ app.post('/api/games', authMiddleware, async (req, res) => {
       return res.status(400).json({ error: 'Участники должны быть разными' });
     }
 
-    const p1 = await db.collection('players').findOne({ _id: new ObjectId(player1_id) });
-    const p2 = await db.collection('players').findOne({ _id: new ObjectId(player2_id) });
+    const p1 = await playersCol().findOne({ _id: new ObjectId(player1_id) });
+    const p2 = await playersCol().findOne({ _id: new ObjectId(player2_id) });
 
     if (!p1 || !p2) {
       return res.status(404).json({ error: 'Один или оба участника не найдены' });
@@ -892,7 +892,7 @@ app.post('/api/games', authMiddleware, async (req, res) => {
     }
 
     const now = new Date();
-    const result = await db.collection('games').insertOne({
+    const result = await gamesCol().insertOne({
       mode,
       status: 'created',
       player1_id: new ObjectId(player1_id),
@@ -912,7 +912,7 @@ app.post('/api/games', authMiddleware, async (req, res) => {
       }]
     });
 
-    const game = await db.collection('games').findOne({ _id: result.insertedId });
+    const game = await gamesCol().findOne({ _id: result.insertedId });
 
     const p1name = p1.type === 'player' ? p1.username : p1.name;
     const p2name = p2.type === 'player' ? p2.username : p2.name;
@@ -931,10 +931,10 @@ app.post('/api/games', authMiddleware, async (req, res) => {
 
 app.get('/api/games/:id/edit', authMiddleware, async (req, res) => {
   try {
-    const game = await db.collection('games').findOne({ _id: new ObjectId(req.params.id) });
+    const game = await gamesCol().findOne({ _id: new ObjectId(req.params.id) });
     if (!game) return res.status(404).json({ error: 'Партия не найдена' });
 
-    const players = await db.collection('players').find(
+    const players = await playersCol().find(
         {},
         { projection: { username: 1, name: 1, type: 1, status: 1 } }
     ).sort({ type: 1, username: 1, name: 1 }).toArray();
@@ -951,7 +951,7 @@ app.put('/api/games/:id', authMiddleware, async (req, res) => {
     const { mode, status, player1_id, player2_id, winner_id, result, comment, reason } = req.body;
     const gameId = new ObjectId(req.params.id);
 
-    const game = await db.collection('games').findOne({ _id: gameId });
+    const game = await gamesCol().findOne({ _id: gameId });
     if (!game) return res.status(404).json({ error: 'Партия не найдена' });
 
     const validModes = ['hotseat', 'bot'];
@@ -969,15 +969,15 @@ app.put('/api/games/:id', authMiddleware, async (req, res) => {
     }
 
     if (player1_id) {
-      const p1 = await db.collection('players').findOne({ _id: new ObjectId(player1_id) });
+      const p1 = await playersCol().findOne({ _id: new ObjectId(player1_id) });
       if (!p1) return res.status(400).json({ error: 'Игрок 1 не найден' });
     }
     if (player2_id) {
-      const p2 = await db.collection('players').findOne({ _id: new ObjectId(player2_id) });
+      const p2 = await playersCol().findOne({ _id: new ObjectId(player2_id) });
       if (!p2) return res.status(400).json({ error: 'Игрок 2 не найден' });
     }
     if (winner_id && winner_id !== 'null' && winner_id !== '') {
-      const w = await db.collection('players').findOne({ _id: new ObjectId(winner_id) });
+      const w = await playersCol().findOne({ _id: new ObjectId(winner_id) });
       if (!w) return res.status(400).json({ error: 'Победитель не найден' });
 
       const effectiveP1 = player1_id || game.player1_id.toString();
@@ -1015,7 +1015,7 @@ app.put('/api/games/:id', authMiddleware, async (req, res) => {
       };
     }
 
-    await db.collection('games').updateOne({ _id: gameId }, updateOps);
+    await gamesCol().updateOne({ _id: gameId }, updateOps);
 
     res.json({ message: 'Партия обновлена' });
   } catch (err) {
@@ -1027,7 +1027,7 @@ app.put('/api/games/:id', authMiddleware, async (req, res) => {
 app.delete('/api/games/:id', authMiddleware, requireAdmin, async (req, res) => {
   try {
     const gameId = new ObjectId(req.params.id);
-    const game = await db.collection('games').findOne({ _id: gameId });
+    const game = await gamesCol().findOne({ _id: gameId });
 
     if (!game) return res.status(404).json({ error: 'Партия не найдена' });
 
@@ -1035,7 +1035,7 @@ app.delete('/api/games/:id', authMiddleware, requireAdmin, async (req, res) => {
       return res.status(400).json({ error: 'Нельзя удалить партию в процессе. Сначала завершите или прервите её.' });
     }
 
-    await db.collection('games').deleteOne({ _id: gameId });
+    await gamesCol().deleteOne({ _id: gameId });
 
     res.json({ message: 'Партия удалена' });
   } catch (err) {
@@ -1050,7 +1050,7 @@ app.get('/api/participants', optionalAuth, async (req, res) => {
     const filter = { status: 'active' };
     if (type) filter.type = type;
 
-    const participants = await db.collection('players').find(filter)
+    const participants = await playersCol().find(filter)
       .project({ username: 1, name: 1, type: 1 })
       .sort({ type: 1, username: 1, name: 1 })
       .toArray();
@@ -1070,10 +1070,10 @@ app.get('/api/participants', optionalAuth, async (req, res) => {
 app.get('/api/stats/overview', optionalAuth, async (req, res) => {
   try {
     const [playersCount, botsCount, gamesCount, completedCount] = await Promise.all([
-      db.collection('players').countDocuments({ type: 'player' }),
-      db.collection('players').countDocuments({ type: 'bot' }),
-      db.collection('games').countDocuments(),
-      db.collection('games').countDocuments({ status: 'completed' })
+      playersCol().countDocuments({ type: 'player' }),
+      playersCol().countDocuments({ type: 'bot' }),
+      gamesCol().countDocuments(),
+      gamesCol().countDocuments({ status: 'completed' })
     ]);
 
     res.json({
@@ -1093,7 +1093,7 @@ app.put('/api/players/:id', authMiddleware, async (req, res) => {
       return res.status(400).json({ error: 'Некорректный ID' });
     }
 
-    const player = await db.collection('players').findOne({
+    const player = await playersCol().findOne({
       _id: new ObjectId(req.params.id), type: 'player'
     });
     if (!player) return res.status(404).json({ error: 'Игрок не найден' });
@@ -1110,14 +1110,14 @@ app.put('/api/players/:id', authMiddleware, async (req, res) => {
         if (username.length < 3) {
           return res.status(400).json({ error: 'Логин должен содержать минимум 3 символа' });
         }
-        const dup = await db.collection('players').findOne({
+        const dup = await playersCol().findOne({
           type: 'player', username, _id: { $ne: player._id }
         });
         if (dup) return res.status(409).json({ error: 'Этот логин уже используется' });
         updates.username = username;
       }
       if (email !== undefined && email !== player.email) {
-        const dup = await db.collection('players').findOne({
+        const dup = await playersCol().findOne({
           type: 'player', email, _id: { $ne: player._id }
         });
         if (dup) return res.status(409).json({ error: 'Этот email уже используется' });
@@ -1143,8 +1143,8 @@ app.put('/api/players/:id', authMiddleware, async (req, res) => {
     const updateQuery = { $set: updates };
     if (Object.keys(pushOps).length > 0) updateQuery.$push = pushOps;
 
-    await db.collection('players').updateOne({ _id: player._id }, updateQuery);
-    const updated = await db.collection('players').findOne(
+    await playersCol().updateOne({ _id: player._id }, updateQuery);
+    const updated = await playersCol().findOne(
       { _id: player._id }, { projection: { password_hash: 0 } }
     );
     res.json(updated);
@@ -1157,10 +1157,10 @@ app.put('/api/players/:id', authMiddleware, async (req, res) => {
 app.get('/api/export', optionalAuth, async (req, res) => {
   try {
     const [players, bots, games] = await Promise.all([
-      db.collection('players').find({ type: 'player' })
+      playersCol().find({ type: 'player' })
         .project({ password_hash: 0 }).toArray(),
-      db.collection('players').find({ type: 'bot' }).toArray(),
-      db.collection('games').find({}).toArray()
+      playersCol().find({ type: 'bot' }).toArray(),
+      gamesCol().find({}).toArray()
     ]);
 
     const data = {
@@ -1187,6 +1187,7 @@ app.post('/api/import', authMiddleware, requireAdmin, async (req, res) => {
       return res.status(400).json({ error: 'Недопустимая стратегия' });
     }
 
+    const db = getDb();
     const results = { players: 0, bots: 0, games: 0, errors: [] };
 
     // Helper to import collection items
@@ -1239,8 +1240,7 @@ app.post('/api/import', authMiddleware, requireAdmin, async (req, res) => {
 });
 
 connectDB()
-  .then(async (database) => {
-    db = database;
+  .then(async () => {
     await seedRoles();
     await seedPasswords();
     app.listen(PORT, () => {
