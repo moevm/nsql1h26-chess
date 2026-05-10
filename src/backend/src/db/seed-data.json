@@ -1,0 +1,549 @@
+{
+  "players": [
+    {
+      "_id": {"$oid": "000000000000000000000001"},
+      "type": "player",
+      "username": "admin",
+      "email": "admin@chess.ru",
+      "password_hash": "__SEED__",
+      "role": "admin",
+      "status": "active",
+      "comment": "Администратор системы",
+      "created_at": {"$date": "2026-04-10T12:00:00Z"},
+      "updated_at": {"$date": "2026-04-10T12:00:00Z"},
+      "stats": {
+        "wins": {"$numberInt": "40"},
+        "losses": {"$numberInt": "10"},
+        "draws": {"$numberInt": "5"},
+        "total_games": {"$numberInt": "55"},
+        "elo": {"$numberInt": "1800"}
+      },
+      "status_history": [
+        {"changed_at": {"$date": "2026-04-10T12:00:00Z"}, "old_status": null, "new_status": "active", "changed_by": null, "reason": "Регистрация"}
+      ]
+    },
+    {
+      "_id": {"$oid": "000000000000000000000002"},
+      "type": "player",
+      "username": "player1",
+      "email": "player@chess.ru",
+      "password_hash": "__SEED__",
+      "role": "user",
+      "status": "active",
+      "comment": "Тестовый игрок",
+      "created_at": {"$date": "2026-04-20T12:00:00Z"},
+      "updated_at": {"$date": "2026-04-20T12:00:00Z"},
+      "stats": {
+        "wins": {"$numberInt": "25"},
+        "losses": {"$numberInt": "18"},
+        "draws": {"$numberInt": "7"},
+        "total_games": {"$numberInt": "50"},
+        "elo": {"$numberInt": "1550"}
+      },
+      "status_history": [
+        {"changed_at": {"$date": "2026-04-20T12:00:00Z"}, "old_status": null, "new_status": "active", "changed_by": null, "reason": "Регистрация"}
+      ]
+    },
+    {
+      "_id": {"$oid": "000000000000000000000003"},
+      "type": "player",
+      "username": "ivanov",
+      "email": "ivanov@chess.ru",
+      "password_hash": "__SEED__",
+      "role": "user",
+      "status": "active",
+      "comment": "Иванов Алексей, опытный игрок",
+      "created_at": {"$date": "2026-04-25T12:00:00Z"},
+      "updated_at": {"$date": "2026-04-25T12:00:00Z"},
+      "stats": {
+        "wins": {"$numberInt": "30"},
+        "losses": {"$numberInt": "12"},
+        "draws": {"$numberInt": "8"},
+        "total_games": {"$numberInt": "50"},
+        "elo": {"$numberInt": "1650"}
+      },
+      "status_history": [
+        {"changed_at": {"$date": "2026-04-25T12:00:00Z"}, "old_status": null, "new_status": "active", "changed_by": null, "reason": "Регистрация"}
+      ]
+    },
+    {
+      "_id": {"$oid": "000000000000000000000004"},
+      "type": "player",
+      "username": "petrova",
+      "email": "petrova@chess.ru",
+      "password_hash": "__SEED__",
+      "role": "user",
+      "status": "active",
+      "comment": "Петрова Мария",
+      "created_at": {"$date": "2026-04-28T12:00:00Z"},
+      "updated_at": {"$date": "2026-04-28T12:00:00Z"},
+      "stats": {
+        "wins": {"$numberInt": "15"},
+        "losses": {"$numberInt": "20"},
+        "draws": {"$numberInt": "5"},
+        "total_games": {"$numberInt": "40"},
+        "elo": {"$numberInt": "1400"}
+      },
+      "status_history": [
+        {"changed_at": {"$date": "2026-04-28T12:00:00Z"}, "old_status": null, "new_status": "active", "changed_by": null, "reason": "Регистрация"}
+      ]
+    },
+    {
+      "_id": {"$oid": "000000000000000000000005"},
+      "type": "player",
+      "username": "sidorov",
+      "email": "sidorov@chess.ru",
+      "password_hash": "__SEED__",
+      "role": "user",
+      "status": "active",
+      "comment": "Сидоров Николай, новичок",
+      "created_at": {"$date": "2026-05-02T12:00:00Z"},
+      "updated_at": {"$date": "2026-05-02T12:00:00Z"},
+      "stats": {
+        "wins": {"$numberInt": "5"},
+        "losses": {"$numberInt": "8"},
+        "draws": {"$numberInt": "2"},
+        "total_games": {"$numberInt": "15"},
+        "elo": {"$numberInt": "1200"}
+      },
+      "status_history": [
+        {"changed_at": {"$date": "2026-05-02T12:00:00Z"}, "old_status": null, "new_status": "active", "changed_by": null, "reason": "Регистрация"}
+      ]
+    },
+    {
+      "_id": {"$oid": "000000000000000000000006"},
+      "type": "player",
+      "username": "kuznetsov",
+      "email": "kuznetsov@chess.ru",
+      "password_hash": "__SEED__",
+      "role": "user",
+      "status": "banned",
+      "comment": "Нарушение правил",
+      "created_at": {"$date": "2026-04-15T12:00:00Z"},
+      "updated_at": {"$date": "2026-05-07T12:00:00Z"},
+      "stats": {
+        "wins": {"$numberInt": "10"},
+        "losses": {"$numberInt": "5"},
+        "draws": {"$numberInt": "1"},
+        "total_games": {"$numberInt": "16"},
+        "elo": {"$numberInt": "1300"}
+      },
+      "status_history": [
+        {"changed_at": {"$date": "2026-04-15T12:00:00Z"}, "old_status": null, "new_status": "active", "changed_by": null, "reason": "Регистрация"},
+        {"changed_at": {"$date": "2026-05-07T12:00:00Z"}, "old_status": "active", "new_status": "banned", "changed_by": {"$oid": "000000000000000000000001"}, "reason": "Нарушение правил сообщества"}
+      ]
+    },
+    {
+      "_id": {"$oid": "000000000000000000000007"},
+      "type": "player",
+      "username": "smirnova",
+      "email": "smirnova@chess.ru",
+      "password_hash": "__SEED__",
+      "role": "user",
+      "status": "active",
+      "comment": "Смирнова Анна, мастер спорта",
+      "created_at": {"$date": "2026-03-31T12:00:00Z"},
+      "updated_at": {"$date": "2026-03-31T12:00:00Z"},
+      "stats": {
+        "wins": {"$numberInt": "60"},
+        "losses": {"$numberInt": "15"},
+        "draws": {"$numberInt": "12"},
+        "total_games": {"$numberInt": "87"},
+        "elo": {"$numberInt": "2000"}
+      },
+      "status_history": [
+        {"changed_at": {"$date": "2026-03-31T12:00:00Z"}, "old_status": null, "new_status": "active", "changed_by": null, "reason": "Регистрация"}
+      ]
+    },
+    {
+      "_id": {"$oid": "000000000000000000000008"},
+      "type": "player",
+      "username": "fedorov",
+      "email": "fedorov@chess.ru",
+      "password_hash": "__SEED__",
+      "role": "user",
+      "status": "active",
+      "comment": "Фёдоров Дмитрий",
+      "created_at": {"$date": "2026-05-05T12:00:00Z"},
+      "updated_at": {"$date": "2026-05-05T12:00:00Z"},
+      "stats": {
+        "wins": {"$numberInt": "3"},
+        "losses": {"$numberInt": "2"},
+        "draws": {"$numberInt": "0"},
+        "total_games": {"$numberInt": "5"},
+        "elo": {"$numberInt": "1100"}
+      },
+      "status_history": [
+        {"changed_at": {"$date": "2026-05-05T12:00:00Z"}, "old_status": null, "new_status": "active", "changed_by": null, "reason": "Регистрация"}
+      ]
+    },
+    {
+      "_id": {"$oid": "000000000000000000000101"},
+      "type": "bot",
+      "name": "RandomBot",
+      "api_url": "http://bots.example.com/random",
+      "status": "active",
+      "comment": "Случайные ходы, для тестирования",
+      "created_at": {"$date": "2026-04-15T12:00:00Z"},
+      "updated_at": {"$date": "2026-04-16T12:00:00Z"},
+      "stats": {
+        "wins": {"$numberInt": "10"},
+        "losses": {"$numberInt": "80"},
+        "draws": {"$numberInt": "5"},
+        "total_games": {"$numberInt": "95"},
+        "elo": {"$numberInt": "800"}
+      },
+      "status_history": [
+        {"changed_at": {"$date": "2026-04-15T12:00:00Z"}, "old_status": null, "new_status": "draft", "changed_by": {"$oid": "000000000000000000000001"}, "reason": "Создание бота"},
+        {"changed_at": {"$date": "2026-04-16T12:00:00Z"}, "old_status": "draft", "new_status": "active", "changed_by": {"$oid": "000000000000000000000001"}, "reason": "Активация"}
+      ]
+    },
+    {
+      "_id": {"$oid": "000000000000000000000102"},
+      "type": "bot",
+      "name": "GreedyBot",
+      "api_url": "http://bots.example.com/greedy",
+      "status": "active",
+      "comment": "Жадная стратегия — берёт любую фигуру при возможности",
+      "created_at": {"$date": "2026-04-20T12:00:00Z"},
+      "updated_at": {"$date": "2026-04-22T12:00:00Z"},
+      "stats": {
+        "wins": {"$numberInt": "45"},
+        "losses": {"$numberInt": "40"},
+        "draws": {"$numberInt": "10"},
+        "total_games": {"$numberInt": "95"},
+        "elo": {"$numberInt": "1100"}
+      },
+      "status_history": [
+        {"changed_at": {"$date": "2026-04-20T12:00:00Z"}, "old_status": null, "new_status": "draft", "changed_by": {"$oid": "000000000000000000000001"}, "reason": "Создание бота"},
+        {"changed_at": {"$date": "2026-04-21T12:00:00Z"}, "old_status": "draft", "new_status": "testing", "changed_by": {"$oid": "000000000000000000000001"}, "reason": "Начало тестирования"},
+        {"changed_at": {"$date": "2026-04-22T12:00:00Z"}, "old_status": "testing", "new_status": "active", "changed_by": {"$oid": "000000000000000000000001"}, "reason": "Тестирование пройдено"}
+      ]
+    },
+    {
+      "_id": {"$oid": "000000000000000000000103"},
+      "type": "bot",
+      "name": "MinimaxBot",
+      "api_url": "http://bots.example.com/minimax",
+      "status": "active",
+      "comment": "Алгоритм минимакс, глубина 4",
+      "created_at": {"$date": "2026-04-22T12:00:00Z"},
+      "updated_at": {"$date": "2026-04-23T12:00:00Z"},
+      "stats": {
+        "wins": {"$numberInt": "70"},
+        "losses": {"$numberInt": "20"},
+        "draws": {"$numberInt": "15"},
+        "total_games": {"$numberInt": "105"},
+        "elo": {"$numberInt": "1600"}
+      },
+      "status_history": [
+        {"changed_at": {"$date": "2026-04-22T12:00:00Z"}, "old_status": null, "new_status": "draft", "changed_by": {"$oid": "000000000000000000000001"}, "reason": "Создание бота"},
+        {"changed_at": {"$date": "2026-04-23T12:00:00Z"}, "old_status": "draft", "new_status": "active", "changed_by": {"$oid": "000000000000000000000001"}, "reason": "Готов"}
+      ]
+    },
+    {
+      "_id": {"$oid": "000000000000000000000104"},
+      "type": "bot",
+      "name": "AlphaBot",
+      "api_url": "http://bots.example.com/alpha",
+      "status": "testing",
+      "comment": "Нейросеть, в стадии тестирования",
+      "created_at": {"$date": "2026-05-05T12:00:00Z"},
+      "updated_at": {"$date": "2026-05-08T12:00:00Z"},
+      "stats": {
+        "wins": {"$numberInt": "3"},
+        "losses": {"$numberInt": "2"},
+        "draws": {"$numberInt": "0"},
+        "total_games": {"$numberInt": "5"},
+        "elo": {"$numberInt": "0"}
+      },
+      "status_history": [
+        {"changed_at": {"$date": "2026-05-05T12:00:00Z"}, "old_status": null, "new_status": "draft", "changed_by": {"$oid": "000000000000000000000001"}, "reason": "Создание"},
+        {"changed_at": {"$date": "2026-05-08T12:00:00Z"}, "old_status": "draft", "new_status": "testing", "changed_by": {"$oid": "000000000000000000000001"}, "reason": "Начало тестирования"}
+      ]
+    },
+    {
+      "_id": {"$oid": "000000000000000000000105"},
+      "type": "bot",
+      "name": "DisabledBot",
+      "api_url": "http://bots.example.com/old",
+      "status": "disabled",
+      "comment": "Устаревший бот",
+      "created_at": {"$date": "2026-03-11T12:00:00Z"},
+      "updated_at": {"$date": "2026-04-10T12:00:00Z"},
+      "stats": {
+        "wins": {"$numberInt": "20"},
+        "losses": {"$numberInt": "30"},
+        "draws": {"$numberInt": "5"},
+        "total_games": {"$numberInt": "55"},
+        "elo": {"$numberInt": "950"}
+      },
+      "status_history": [
+        {"changed_at": {"$date": "2026-03-11T12:00:00Z"}, "old_status": null, "new_status": "draft", "changed_by": {"$oid": "000000000000000000000001"}, "reason": "Создание"},
+        {"changed_at": {"$date": "2026-03-16T12:00:00Z"}, "old_status": "draft", "new_status": "active", "changed_by": {"$oid": "000000000000000000000001"}, "reason": "Активация"},
+        {"changed_at": {"$date": "2026-04-10T12:00:00Z"}, "old_status": "active", "new_status": "disabled", "changed_by": {"$oid": "000000000000000000000001"}, "reason": "Устарел"}
+      ]
+    },
+    {
+      "_id": {"$oid": "000000000000000000000106"},
+      "type": "bot",
+      "name": "StockfishBot",
+      "api_url": "http://bots.example.com/stockfish",
+      "status": "active",
+      "comment": "Сильнейший движок, Stockfish 16",
+      "created_at": {"$date": "2026-04-10T12:00:00Z"},
+      "updated_at": {"$date": "2026-04-10T12:00:00Z"},
+      "stats": {
+        "wins": {"$numberInt": "120"},
+        "losses": {"$numberInt": "8"},
+        "draws": {"$numberInt": "12"},
+        "total_games": {"$numberInt": "140"},
+        "elo": {"$numberInt": "2400"}
+      },
+      "status_history": [
+        {"changed_at": {"$date": "2026-04-10T12:00:00Z"}, "old_status": null, "new_status": "active", "changed_by": {"$oid": "000000000000000000000001"}, "reason": "Создание и активация"}
+      ]
+    },
+    {
+      "_id": {"$oid": "000000000000000000000107"},
+      "type": "bot",
+      "name": "TrainingBot",
+      "api_url": "http://bots.example.com/training",
+      "status": "active",
+      "comment": "Слабый бот для обучения новичков",
+      "created_at": {"$date": "2026-05-01T12:00:00Z"},
+      "updated_at": {"$date": "2026-05-01T12:00:00Z"},
+      "stats": {
+        "wins": {"$numberInt": "5"},
+        "losses": {"$numberInt": "30"},
+        "draws": {"$numberInt": "3"},
+        "total_games": {"$numberInt": "38"},
+        "elo": {"$numberInt": "700"}
+      },
+      "status_history": [
+        {"changed_at": {"$date": "2026-05-01T12:00:00Z"}, "old_status": null, "new_status": "active", "changed_by": {"$oid": "000000000000000000000001"}, "reason": "Создание и активация"}
+      ]
+    }
+  ],
+  "games": [
+    {
+      "mode": "hotseat",
+      "status": "completed",
+      "player1_id": {"$oid": "000000000000000000000002"},
+      "player2_id": {"$oid": "000000000000000000000003"},
+      "winner_id": {"$oid": "000000000000000000000003"},
+      "result": "checkmate",
+      "comment": "Тестовая партия 1",
+      "created_at": {"$date": "2026-04-30T12:00:00Z"},
+      "updated_at": {"$date": "2026-04-30T12:05:00Z"},
+      "moves": [
+        {"move_number": {"$numberInt": "1"}, "player_id": {"$oid": "000000000000000000000002"}, "from_sq": "e2", "to_sq": "e4", "piece": "pawn", "captured": null, "timestamp": {"$date": "2026-04-30T12:00:30Z"}},
+        {"move_number": {"$numberInt": "2"}, "player_id": {"$oid": "000000000000000000000003"}, "from_sq": "e7", "to_sq": "e5", "piece": "pawn", "captured": null, "timestamp": {"$date": "2026-04-30T12:01:00Z"}},
+        {"move_number": {"$numberInt": "3"}, "player_id": {"$oid": "000000000000000000000002"}, "from_sq": "f1", "to_sq": "c4", "piece": "bishop", "captured": null, "timestamp": {"$date": "2026-04-30T12:01:30Z"}},
+        {"move_number": {"$numberInt": "4"}, "player_id": {"$oid": "000000000000000000000003"}, "from_sq": "d8", "to_sq": "h4", "piece": "queen", "captured": null, "timestamp": {"$date": "2026-04-30T12:02:00Z"}}
+      ],
+      "status_history": [
+        {"changed_at": {"$date": "2026-04-30T12:00:00Z"}, "old_status": null, "new_status": "created", "changed_by": {"$oid": "000000000000000000000002"}, "reason": "Создание партии"},
+        {"changed_at": {"$date": "2026-04-30T12:00:15Z"}, "old_status": "created", "new_status": "in_progress", "changed_by": {"$oid": "000000000000000000000002"}, "reason": "Старт"},
+        {"changed_at": {"$date": "2026-04-30T12:05:00Z"}, "old_status": "in_progress", "new_status": "completed", "changed_by": {"$oid": "000000000000000000000003"}, "reason": "Мат"}
+      ]
+    },
+    {
+      "mode": "bot",
+      "status": "completed",
+      "player1_id": {"$oid": "000000000000000000000002"},
+      "player2_id": {"$oid": "000000000000000000000101"},
+      "winner_id": {"$oid": "000000000000000000000002"},
+      "result": "checkmate",
+      "comment": "Игра с RandomBot",
+      "created_at": {"$date": "2026-05-01T12:00:00Z"},
+      "updated_at": {"$date": "2026-05-01T12:03:00Z"},
+      "moves": [
+        {"move_number": {"$numberInt": "1"}, "player_id": {"$oid": "000000000000000000000002"}, "from_sq": "d2", "to_sq": "d4", "piece": "pawn", "captured": null, "timestamp": {"$date": "2026-05-01T12:00:30Z"}},
+        {"move_number": {"$numberInt": "2"}, "player_id": {"$oid": "000000000000000000000101"}, "from_sq": "g8", "to_sq": "f6", "piece": "knight", "captured": null, "timestamp": {"$date": "2026-05-01T12:01:00Z"}}
+      ],
+      "status_history": [
+        {"changed_at": {"$date": "2026-05-01T12:00:00Z"}, "old_status": null, "new_status": "created", "changed_by": {"$oid": "000000000000000000000002"}, "reason": "Создание партии"},
+        {"changed_at": {"$date": "2026-05-01T12:00:10Z"}, "old_status": "created", "new_status": "in_progress", "changed_by": {"$oid": "000000000000000000000002"}, "reason": "Старт"},
+        {"changed_at": {"$date": "2026-05-01T12:03:00Z"}, "old_status": "in_progress", "new_status": "completed", "changed_by": {"$oid": "000000000000000000000002"}, "reason": "Мат"}
+      ]
+    },
+    {
+      "mode": "hotseat",
+      "status": "completed",
+      "player1_id": {"$oid": "000000000000000000000004"},
+      "player2_id": {"$oid": "000000000000000000000005"},
+      "winner_id": null,
+      "result": "draw",
+      "comment": "Ничья по соглашению",
+      "created_at": {"$date": "2026-05-03T12:00:00Z"},
+      "updated_at": {"$date": "2026-05-03T12:02:00Z"},
+      "moves": [
+        {"move_number": {"$numberInt": "1"}, "player_id": {"$oid": "000000000000000000000004"}, "from_sq": "c2", "to_sq": "c4", "piece": "pawn", "captured": null, "timestamp": {"$date": "2026-05-03T12:00:30Z"}},
+        {"move_number": {"$numberInt": "2"}, "player_id": {"$oid": "000000000000000000000005"}, "from_sq": "e7", "to_sq": "e6", "piece": "pawn", "captured": null, "timestamp": {"$date": "2026-05-03T12:01:00Z"}}
+      ],
+      "status_history": [
+        {"changed_at": {"$date": "2026-05-03T12:00:00Z"}, "old_status": null, "new_status": "created", "changed_by": {"$oid": "000000000000000000000004"}, "reason": "Создание"},
+        {"changed_at": {"$date": "2026-05-03T12:00:10Z"}, "old_status": "created", "new_status": "in_progress", "changed_by": {"$oid": "000000000000000000000004"}, "reason": "Старт"},
+        {"changed_at": {"$date": "2026-05-03T12:02:00Z"}, "old_status": "in_progress", "new_status": "completed", "changed_by": {"$oid": "000000000000000000000004"}, "reason": "Ничья по соглашению"}
+      ]
+    },
+    {
+      "mode": "bot",
+      "status": "completed",
+      "player1_id": {"$oid": "000000000000000000000003"},
+      "player2_id": {"$oid": "000000000000000000000102"},
+      "winner_id": {"$oid": "000000000000000000000102"},
+      "result": "checkmate",
+      "comment": "Игра с GreedyBot",
+      "created_at": {"$date": "2026-05-04T12:00:00Z"},
+      "updated_at": {"$date": "2026-05-04T12:04:00Z"},
+      "moves": [
+        {"move_number": {"$numberInt": "1"}, "player_id": {"$oid": "000000000000000000000003"}, "from_sq": "e2", "to_sq": "e4", "piece": "pawn", "captured": null, "timestamp": {"$date": "2026-05-04T12:00:30Z"}},
+        {"move_number": {"$numberInt": "2"}, "player_id": {"$oid": "000000000000000000000102"}, "from_sq": "d7", "to_sq": "d5", "piece": "pawn", "captured": null, "timestamp": {"$date": "2026-05-04T12:01:00Z"}},
+        {"move_number": {"$numberInt": "3"}, "player_id": {"$oid": "000000000000000000000003"}, "from_sq": "e4", "to_sq": "d5", "piece": "pawn", "captured": "pawn", "timestamp": {"$date": "2026-05-04T12:01:30Z"}}
+      ],
+      "status_history": [
+        {"changed_at": {"$date": "2026-05-04T12:00:00Z"}, "old_status": null, "new_status": "created", "changed_by": {"$oid": "000000000000000000000003"}, "reason": "Создание"},
+        {"changed_at": {"$date": "2026-05-04T12:00:10Z"}, "old_status": "created", "new_status": "in_progress", "changed_by": {"$oid": "000000000000000000000003"}, "reason": "Старт"},
+        {"changed_at": {"$date": "2026-05-04T12:04:00Z"}, "old_status": "in_progress", "new_status": "completed", "changed_by": {"$oid": "000000000000000000000003"}, "reason": "Мат"}
+      ]
+    },
+    {
+      "mode": "hotseat",
+      "status": "abandoned",
+      "player1_id": {"$oid": "000000000000000000000002"},
+      "player2_id": {"$oid": "000000000000000000000004"},
+      "winner_id": null,
+      "result": null,
+      "comment": "Партия брошена",
+      "created_at": {"$date": "2026-05-05T12:00:00Z"},
+      "updated_at": {"$date": "2026-05-05T12:01:00Z"},
+      "moves": [
+        {"move_number": {"$numberInt": "1"}, "player_id": {"$oid": "000000000000000000000002"}, "from_sq": "a2", "to_sq": "a4", "piece": "pawn", "captured": null, "timestamp": {"$date": "2026-05-05T12:00:30Z"}}
+      ],
+      "status_history": [
+        {"changed_at": {"$date": "2026-05-05T12:00:00Z"}, "old_status": null, "new_status": "created", "changed_by": {"$oid": "000000000000000000000002"}, "reason": "Создание"},
+        {"changed_at": {"$date": "2026-05-05T12:00:10Z"}, "old_status": "created", "new_status": "in_progress", "changed_by": {"$oid": "000000000000000000000002"}, "reason": "Старт"},
+        {"changed_at": {"$date": "2026-05-05T12:01:00Z"}, "old_status": "in_progress", "new_status": "abandoned", "changed_by": {"$oid": "000000000000000000000002"}, "reason": "Игрок покинул партию"}
+      ]
+    },
+    {
+      "mode": "bot",
+      "status": "completed",
+      "player1_id": {"$oid": "000000000000000000000007"},
+      "player2_id": {"$oid": "000000000000000000000103"},
+      "winner_id": {"$oid": "000000000000000000000007"},
+      "result": "checkmate",
+      "comment": "Сильный игрок vs MinimaxBot",
+      "created_at": {"$date": "2026-05-06T12:00:00Z"},
+      "updated_at": {"$date": "2026-05-06T12:04:00Z"},
+      "moves": [
+        {"move_number": {"$numberInt": "1"}, "player_id": {"$oid": "000000000000000000000007"}, "from_sq": "e2", "to_sq": "e4", "piece": "pawn", "captured": null, "timestamp": {"$date": "2026-05-06T12:00:30Z"}},
+        {"move_number": {"$numberInt": "2"}, "player_id": {"$oid": "000000000000000000000103"}, "from_sq": "c7", "to_sq": "c5", "piece": "pawn", "captured": null, "timestamp": {"$date": "2026-05-06T12:01:00Z"}}
+      ],
+      "status_history": [
+        {"changed_at": {"$date": "2026-05-06T12:00:00Z"}, "old_status": null, "new_status": "created", "changed_by": {"$oid": "000000000000000000000007"}, "reason": "Создание"},
+        {"changed_at": {"$date": "2026-05-06T12:00:10Z"}, "old_status": "created", "new_status": "in_progress", "changed_by": {"$oid": "000000000000000000000007"}, "reason": "Старт"},
+        {"changed_at": {"$date": "2026-05-06T12:04:00Z"}, "old_status": "in_progress", "new_status": "completed", "changed_by": {"$oid": "000000000000000000000007"}, "reason": "Мат"}
+      ]
+    },
+    {
+      "mode": "hotseat",
+      "status": "in_progress",
+      "player1_id": {"$oid": "000000000000000000000008"},
+      "player2_id": {"$oid": "000000000000000000000005"},
+      "winner_id": null,
+      "result": null,
+      "comment": "Текущая партия",
+      "created_at": {"$date": "2026-05-09T12:00:00Z"},
+      "updated_at": {"$date": "2026-05-09T12:02:00Z"},
+      "moves": [
+        {"move_number": {"$numberInt": "1"}, "player_id": {"$oid": "000000000000000000000008"}, "from_sq": "d2", "to_sq": "d4", "piece": "pawn", "captured": null, "timestamp": {"$date": "2026-05-09T12:00:30Z"}},
+        {"move_number": {"$numberInt": "2"}, "player_id": {"$oid": "000000000000000000000005"}, "from_sq": "d7", "to_sq": "d5", "piece": "pawn", "captured": null, "timestamp": {"$date": "2026-05-09T12:01:00Z"}},
+        {"move_number": {"$numberInt": "3"}, "player_id": {"$oid": "000000000000000000000008"}, "from_sq": "c1", "to_sq": "f4", "piece": "bishop", "captured": null, "timestamp": {"$date": "2026-05-09T12:02:00Z"}}
+      ],
+      "status_history": [
+        {"changed_at": {"$date": "2026-05-09T12:00:00Z"}, "old_status": null, "new_status": "created", "changed_by": {"$oid": "000000000000000000000008"}, "reason": "Создание"},
+        {"changed_at": {"$date": "2026-05-09T12:00:10Z"}, "old_status": "created", "new_status": "in_progress", "changed_by": {"$oid": "000000000000000000000008"}, "reason": "Старт"}
+      ]
+    },
+    {
+      "mode": "bot",
+      "status": "completed",
+      "player1_id": {"$oid": "000000000000000000000002"},
+      "player2_id": {"$oid": "000000000000000000000103"},
+      "winner_id": null,
+      "result": "stalemate",
+      "comment": "Пат с MinimaxBot",
+      "created_at": {"$date": "2026-05-07T12:00:00Z"},
+      "updated_at": {"$date": "2026-05-07T12:05:00Z"},
+      "moves": [
+        {"move_number": {"$numberInt": "1"}, "player_id": {"$oid": "000000000000000000000002"}, "from_sq": "h2", "to_sq": "h4", "piece": "pawn", "captured": null, "timestamp": {"$date": "2026-05-07T12:00:30Z"}}
+      ],
+      "status_history": [
+        {"changed_at": {"$date": "2026-05-07T12:00:00Z"}, "old_status": null, "new_status": "created", "changed_by": {"$oid": "000000000000000000000002"}, "reason": "Создание"},
+        {"changed_at": {"$date": "2026-05-07T12:00:10Z"}, "old_status": "created", "new_status": "in_progress", "changed_by": {"$oid": "000000000000000000000002"}, "reason": "Старт"},
+        {"changed_at": {"$date": "2026-05-07T12:05:00Z"}, "old_status": "in_progress", "new_status": "completed", "changed_by": {"$oid": "000000000000000000000002"}, "reason": "Пат"}
+      ]
+    },
+    {
+      "mode": "hotseat",
+      "status": "completed",
+      "player1_id": {"$oid": "000000000000000000000001"},
+      "player2_id": {"$oid": "000000000000000000000007"},
+      "winner_id": {"$oid": "000000000000000000000001"},
+      "result": "checkmate",
+      "comment": "Пример: шах и рокировка",
+      "created_at": {"$date": "2026-05-08T12:00:00Z"},
+      "updated_at": {"$date": "2026-05-08T12:06:00Z"},
+      "moves": [
+        {"move_number": {"$numberInt": "1"}, "player_id": {"$oid": "000000000000000000000001"}, "from_sq": "e2", "to_sq": "e4", "piece": "pawn", "captured": null, "check": false, "castling": false, "timestamp": {"$date": "2026-05-08T12:00:30Z"}},
+        {"move_number": {"$numberInt": "2"}, "player_id": {"$oid": "000000000000000000000007"}, "from_sq": "e7", "to_sq": "e5", "piece": "pawn", "captured": null, "check": false, "castling": false, "timestamp": {"$date": "2026-05-08T12:01:00Z"}},
+        {"move_number": {"$numberInt": "3"}, "player_id": {"$oid": "000000000000000000000001"}, "from_sq": "g1", "to_sq": "f3", "piece": "knight", "captured": null, "check": false, "castling": false, "timestamp": {"$date": "2026-05-08T12:01:30Z"}},
+        {"move_number": {"$numberInt": "4"}, "player_id": {"$oid": "000000000000000000000007"}, "from_sq": "b8", "to_sq": "c6", "piece": "knight", "captured": null, "check": false, "castling": false, "timestamp": {"$date": "2026-05-08T12:02:00Z"}},
+        {"move_number": {"$numberInt": "5"}, "player_id": {"$oid": "000000000000000000000001"}, "from_sq": "f1", "to_sq": "c4", "piece": "bishop", "captured": null, "check": false, "castling": false, "timestamp": {"$date": "2026-05-08T12:02:30Z"}},
+        {"move_number": {"$numberInt": "6"}, "player_id": {"$oid": "000000000000000000000007"}, "from_sq": "g8", "to_sq": "f6", "piece": "knight", "captured": null, "check": false, "castling": false, "timestamp": {"$date": "2026-05-08T12:03:00Z"}},
+        {"move_number": {"$numberInt": "7"}, "player_id": {"$oid": "000000000000000000000001"}, "from_sq": "e1", "to_sq": "g1", "piece": "king", "captured": null, "check": false, "castling": true, "timestamp": {"$date": "2026-05-08T12:03:30Z"}},
+        {"move_number": {"$numberInt": "8"}, "player_id": {"$oid": "000000000000000000000007"}, "from_sq": "f8", "to_sq": "c5", "piece": "bishop", "captured": null, "check": false, "castling": false, "timestamp": {"$date": "2026-05-08T12:04:00Z"}},
+        {"move_number": {"$numberInt": "9"}, "player_id": {"$oid": "000000000000000000000001"}, "from_sq": "d1", "to_sq": "h5", "piece": "queen", "captured": null, "check": true, "castling": false, "timestamp": {"$date": "2026-05-08T12:04:30Z"}},
+        {"move_number": {"$numberInt": "10"}, "player_id": {"$oid": "000000000000000000000007"}, "from_sq": "g7", "to_sq": "g6", "piece": "pawn", "captured": null, "check": false, "castling": false, "timestamp": {"$date": "2026-05-08T12:05:00Z"}},
+        {"move_number": {"$numberInt": "11"}, "player_id": {"$oid": "000000000000000000000001"}, "from_sq": "h5", "to_sq": "f7", "piece": "queen", "captured": "pawn", "check": true, "castling": false, "timestamp": {"$date": "2026-05-08T12:05:30Z"}}
+      ],
+      "status_history": [
+        {"changed_at": {"$date": "2026-05-08T12:00:00Z"}, "old_status": null, "new_status": "created", "changed_by": {"$oid": "000000000000000000000001"}, "reason": "Создание партии"},
+        {"changed_at": {"$date": "2026-05-08T12:00:15Z"}, "old_status": "created", "new_status": "in_progress", "changed_by": {"$oid": "000000000000000000000001"}, "reason": "Старт"},
+        {"changed_at": {"$date": "2026-05-08T12:06:00Z"}, "old_status": "in_progress", "new_status": "completed", "changed_by": {"$oid": "000000000000000000000001"}, "reason": "Мат"}
+      ]
+    },
+    {
+      "mode": "hotseat",
+      "status": "completed",
+      "player1_id": {"$oid": "000000000000000000000003"},
+      "player2_id": {"$oid": "000000000000000000000004"},
+      "winner_id": {"$oid": "000000000000000000000004"},
+      "result": "checkmate",
+      "comment": "Пример: рокировка чёрных и шах",
+      "created_at": {"$date": "2026-05-09T08:00:00Z"},
+      "updated_at": {"$date": "2026-05-09T08:06:00Z"},
+      "moves": [
+        {"move_number": {"$numberInt": "1"}, "player_id": {"$oid": "000000000000000000000003"}, "from_sq": "d2", "to_sq": "d4", "piece": "pawn", "captured": null, "check": false, "castling": false, "timestamp": {"$date": "2026-05-09T08:00:30Z"}},
+        {"move_number": {"$numberInt": "2"}, "player_id": {"$oid": "000000000000000000000004"}, "from_sq": "d7", "to_sq": "d5", "piece": "pawn", "captured": null, "check": false, "castling": false, "timestamp": {"$date": "2026-05-09T08:01:00Z"}},
+        {"move_number": {"$numberInt": "3"}, "player_id": {"$oid": "000000000000000000000003"}, "from_sq": "c1", "to_sq": "f4", "piece": "bishop", "captured": null, "check": false, "castling": false, "timestamp": {"$date": "2026-05-09T08:01:30Z"}},
+        {"move_number": {"$numberInt": "4"}, "player_id": {"$oid": "000000000000000000000004"}, "from_sq": "c8", "to_sq": "f5", "piece": "bishop", "captured": null, "check": false, "castling": false, "timestamp": {"$date": "2026-05-09T08:02:00Z"}},
+        {"move_number": {"$numberInt": "5"}, "player_id": {"$oid": "000000000000000000000003"}, "from_sq": "g1", "to_sq": "f3", "piece": "knight", "captured": null, "check": false, "castling": false, "timestamp": {"$date": "2026-05-09T08:02:30Z"}},
+        {"move_number": {"$numberInt": "6"}, "player_id": {"$oid": "000000000000000000000004"}, "from_sq": "g8", "to_sq": "f6", "piece": "knight", "captured": null, "check": false, "castling": false, "timestamp": {"$date": "2026-05-09T08:03:00Z"}},
+        {"move_number": {"$numberInt": "7"}, "player_id": {"$oid": "000000000000000000000003"}, "from_sq": "e2", "to_sq": "e3", "piece": "pawn", "captured": null, "check": false, "castling": false, "timestamp": {"$date": "2026-05-09T08:03:30Z"}},
+        {"move_number": {"$numberInt": "8"}, "player_id": {"$oid": "000000000000000000000004"}, "from_sq": "e8", "to_sq": "g8", "piece": "king", "captured": null, "check": false, "castling": true, "timestamp": {"$date": "2026-05-09T08:04:00Z"}},
+        {"move_number": {"$numberInt": "9"}, "player_id": {"$oid": "000000000000000000000003"}, "from_sq": "f1", "to_sq": "b5", "piece": "bishop", "captured": null, "check": true, "castling": false, "timestamp": {"$date": "2026-05-09T08:04:30Z"}},
+        {"move_number": {"$numberInt": "10"}, "player_id": {"$oid": "000000000000000000000004"}, "from_sq": "c7", "to_sq": "c6", "piece": "pawn", "captured": null, "check": false, "castling": false, "timestamp": {"$date": "2026-05-09T08:05:00Z"}},
+        {"move_number": {"$numberInt": "11"}, "player_id": {"$oid": "000000000000000000000004"}, "from_sq": "d8", "to_sq": "a5", "piece": "queen", "captured": null, "check": true, "castling": false, "timestamp": {"$date": "2026-05-09T08:05:30Z"}}
+      ],
+      "status_history": [
+        {"changed_at": {"$date": "2026-05-09T08:00:00Z"}, "old_status": null, "new_status": "created", "changed_by": {"$oid": "000000000000000000000003"}, "reason": "Создание партии"},
+        {"changed_at": {"$date": "2026-05-09T08:00:15Z"}, "old_status": "created", "new_status": "in_progress", "changed_by": {"$oid": "000000000000000000000003"}, "reason": "Старт"},
+        {"changed_at": {"$date": "2026-05-09T08:06:00Z"}, "old_status": "in_progress", "new_status": "completed", "changed_by": {"$oid": "000000000000000000000004"}, "reason": "Мат"}
+      ]
+    }
+  ]
+}

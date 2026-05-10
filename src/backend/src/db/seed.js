@@ -1,42 +1,28 @@
+const fs = require('fs');
+const path = require('path');
 const bcrypt = require('bcryptjs');
+const { BSON } = require('mongodb');
 const { getDb } = require('./connection');
 
-async function seedRoles() {
+async function seedIfEmpty() {
   const db = getDb();
-  await db.collection('players').updateMany(
-    { type: 'player', role: { $exists: false } },
-    [{
-      $set: {
-        role: { $cond: [{ $eq: ['$username', 'admin'] }, 'admin', 'user'] }
-      }
-    }],
-    { bypassDocumentValidation: true }
-  );
-}
+  const [playersCount, gamesCount] = await Promise.all([
+    db.collection('players').countDocuments({}, { limit: 1 }),
+    db.collection('games').countDocuments({}, { limit: 1 })
+  ]);
+  if (playersCount > 0 || gamesCount > 0) return;
 
-async function seedStats() {
-  const db = getDb();
-  await db.collection('players').updateMany(
-    {
-      $or: [
-        { 'stats.wins':        { $exists: true, $not: { $type: 'int' } } },
-        { 'stats.losses':      { $exists: true, $not: { $type: 'int' } } },
-        { 'stats.draws':       { $exists: true, $not: { $type: 'int' } } },
-        { 'stats.total_games': { $exists: true, $not: { $type: 'int' } } },
-        { 'stats.elo':         { $exists: true, $not: { $type: 'int' } } }
-      ]
-    },
-    [{
-      $set: {
-        'stats.wins':        { $toInt: { $ifNull: ['$stats.wins', 0] } },
-        'stats.losses':      { $toInt: { $ifNull: ['$stats.losses', 0] } },
-        'stats.draws':       { $toInt: { $ifNull: ['$stats.draws', 0] } },
-        'stats.total_games': { $toInt: { $ifNull: ['$stats.total_games', 0] } },
-        'stats.elo':         { $toInt: { $ifNull: ['$stats.elo', 0] } }
-      }
-    }],
-    { bypassDocumentValidation: true }
-  );
+  const file = path.join(__dirname, 'seed-data.json');
+  const dump = BSON.EJSON.parse(fs.readFileSync(file, 'utf8'), { relaxed: false });
+
+  if (dump.players && dump.players.length > 0) {
+    await db.collection('players').insertMany(dump.players);
+    console.log(`Seeded ${dump.players.length} players (incl. bots)`);
+  }
+  if (dump.games && dump.games.length > 0) {
+    await db.collection('games').insertMany(dump.games);
+    console.log(`Seeded ${dump.games.length} games`);
+  }
 }
 
 async function seedPasswords() {
@@ -58,4 +44,4 @@ async function seedPasswords() {
   }
 }
 
-module.exports = { seedRoles, seedStats, seedPasswords };
+module.exports = { seedIfEmpty, seedPasswords };

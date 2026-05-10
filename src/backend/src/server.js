@@ -2,7 +2,8 @@ const express = require('express');
 const cors = require('cors');
 const { PORT } = require('./config/env');
 const { connectDB } = require('./db/connection');
-const { seedRoles, seedStats, seedPasswords } = require('./db/seed');
+const { runMigrations } = require('./db/migrations');
+const { seedIfEmpty, seedPasswords } = require('./db/seed');
 const apiRoutes = require('./routes');
 const { errorHandler } = require('./middleware/errorHandler');
 
@@ -14,8 +15,8 @@ app.use(errorHandler);
 
 connectDB()
   .then(async () => {
-    await seedRoles();
-    await seedStats();
+    await runMigrations();
+    await seedIfEmpty();
     await seedPasswords();
     app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
   })
