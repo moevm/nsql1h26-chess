@@ -39,6 +39,19 @@ services:
       - app-network
     restart: unless-stopped
 
+  bot:
+    build:
+      context: ./bot
+      dockerfile: Dockerfile
+    container_name: circular-chess-bot
+    volumes:
+      - ./bot:/app
+    depends_on:
+      - backend
+    networks:
+      - app-network
+    restart: unless-stopped
+
 volumes:
   mongo-data:
 
