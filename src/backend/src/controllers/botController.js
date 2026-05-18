@@ -15,4 +15,8 @@ const update = handle(async (req, res) =>
 
 const remove = handle(async (req, res) => res.json(await botService.deleteBot(req.params.id)));
 
-module.exports = { list, getById, create, update, remove };
+const regenerateKey = handle(async (req, res) =>
+  res.json(await botService.regenerateApiKey(req.params.id))
+);
+
+module.exports = { list, getById, create, update, remove, regenerateKey };

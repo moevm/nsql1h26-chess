@@ -399,6 +399,9 @@ tr.clickable:hover {
 .badge-checkmate { background: #dcfce7; color: #166534; }
 .badge-stalemate { background: #fef3c7; color: #92400e; }
 .badge-draw { background: #f1f5f9; color: #475569; }
+.badge-check { background: #fef3c7; color: #92400e; }
+.badge-threefold { background: #e0e7ff; color: #3730a3; }
+.badge-resigned { background: #fee2e2; color: #991b1b; }
 
 .pagination {
     display: flex;
@@ -682,6 +685,7 @@ tr.clickable:hover {
 .toast {
     padding: 12px 20px;
     border-radius: var(--radius);
+    background: #1f2937; /* запасной фон, чтобы тост без типа не был белым на белом */
     color: white;
     font-size: 0.9rem;
     box-shadow: var(--shadow-lg);

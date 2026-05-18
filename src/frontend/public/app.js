@@ -1,9 +1,21 @@
 // =====================
 // Состояния
 // =====================
+// Безопасный парсинг — если в localStorage оказался мусор (например, из-за
+// ручного редактирования или старой версии приложения), не валим всё SPA.
+function safeParseUser() {
+  const raw = localStorage.getItem('user');
+  if (!raw) return null;
+  try { return JSON.parse(raw); }
+  catch {
+    localStorage.removeItem('user');
+    return null;
+  }
+}
+
 const state = {
   token: localStorage.getItem('token') || null,
-  user: JSON.parse(localStorage.getItem('user') || 'null'),
+  user: safeParseUser(),
   currentPage: 'home'
 };
 
@@ -24,10 +36,20 @@ async function api(path, options = {}) {
       headers: { ...headers, ...options.headers }
     });
 
-    const data = await res.json();
+    // Парсим тело вручную: если сервер вернул не-JSON (HTML-404 от nginx,
+    // пустой ответ от упавшего бэкенда и т.п.), выдаём понятное сообщение
+    // вместо «JSON.parse: unexpected character».
+    const text = await res.text();
+    let data = null;
+    if (text) {
+      try { data = JSON.parse(text); }
+      catch {
+        throw new Error(`Сервер вернул не-JSON (HTTP ${res.status}). Ответ начинается с: ${text.slice(0, 60)}`);
+      }
+    }
 
     if (!res.ok) {
-      throw new Error(data.error || `Ошибка ${res.status}`);
+      throw new Error((data && data.error) || `Ошибка ${res.status}`);
     }
 
     return data;
@@ -411,6 +433,10 @@ let gamesSortDir = 'desc';
 
 function renderGames() {
   const main = document.getElementById('main-content');
+  const f = gamesFilters || {};
+  const opt = (v, label) =>
+    `<option value="${v}"${f.status === v ? ' selected' : ''}>${label}</option>`;
+  const val = (v) => v == null ? '' : escapeHtml(v);
   main.innerHTML = `
     <div class="page-title">
       <span>Партии</span>
@@ -425,63 +451,49 @@ function renderGames() {
       <div class="filters-body" id="games-filters" style="display:none;">
         <div class="filters-grid">
           <div class="filter-group">
-            <label>Режим</label>
-            <select id="gf-mode">
-              <option value="">Все</option>
-              <option value="hotseat">Hotseat</option>
-              <option value="bot">Бот</option>
-            </select>
-          </div>
-          <div class="filter-group">
             <label>Статус</label>
             <select id="gf-status">
-              <option value="">Все</option>
-              <option value="created">Создана</option>
-              <option value="in_progress">В процессе</option>
-              <option value="completed">Завершена</option>
-              <option value="abandoned">Прервана</option>
-              <option value="paused">Пауза</option>
-            </select>
-          </div>
-          <div class="filter-group">
-            <label>Результат</label>
-            <select id="gf-result">
-              <option value="">Все</option>
-              <option value="checkmate">Мат</option>
-              <option value="stalemate">Пат</option>
-              <option value="draw">Ничья</option>
+              ${opt('', 'Все')}
+              ${opt('active', 'Идёт')}
+              ${opt('check', 'Шах')}
+              ${opt('checkmate', 'Мат')}
+              ${opt('stalemate', 'Пат')}
+              ${opt('threefold', 'Троекратное повторение')}
+              ${opt('resigned', 'Сдача')}
+              ${opt('draw', 'Ничья')}
+              ${opt('abandoned', 'Прервана')}
             </select>
           </div>
           <div class="filter-group">
             <label>Участник (имя)</label>
-            <input type="text" id="gf-player" placeholder="Поиск по имени...">
+            <input type="text" id="gf-player" placeholder="Поиск по имени..." value="${val(f.player_name)}">
           </div>
           <div class="filter-group">
             <label>Комментарий</label>
-            <input type="text" id="gf-comment" placeholder="Поиск в комментариях...">
-          </div>
-          <div class="filter-group">
-            <label>Дата создания (от)</label>
-            <input type="date" id="gf-date-from">
-          </div>
-          <div class="filter-group">
-            <label>Дата создания (до)</label>
-            <input type="date" id="gf-date-to">
-          </div>
-          <div class="filter-group">
-            <label>Дата обновления (от)</label>
-            <input type="date" id="gf-updated-from">
-          </div>
-          <div class="filter-group">
-            <label>Дата обновления (до)</label>
-            <input type="date" id="gf-updated-to">
+            <input type="text" id="gf-comment" placeholder="Поиск в комментариях..." value="${val(f.comment)}">
           </div>
           <div class="filter-group">
             <label>Кол-во ходов</label>
             <div class="filter-range">
-              <input type="number" id="gf-moves-min" placeholder="От" min="0">
-              <input type="number" id="gf-moves-max" placeholder="До" min="0">
+              <input type="number" id="gf-moves-min" placeholder="От" min="0" value="${val(f.moves_min)}">
+              <input type="number" id="gf-moves-max" placeholder="До" min="0" value="${val(f.moves_max)}">
             </div>
+          </div>
+          <div class="filter-group">
+            <label>Дата создания (от)</label>
+            <input type="date" id="gf-date-from" value="${val(f.created_from)}">
+          </div>
+          <div class="filter-group">
+            <label>Дата создания (до)</label>
+            <input type="date" id="gf-date-to" value="${val(f.created_to)}">
+          </div>
+          <div class="filter-group">
+            <label>Дата обновления (от)</label>
+            <input type="date" id="gf-updated-from" value="${val(f.updated_from)}">
+          </div>
+          <div class="filter-group">
+            <label>Дата обновления (до)</label>
+            <input type="date" id="gf-updated-to" value="${val(f.updated_to)}">
           </div>
         </div>
         <div class="filters-actions">
@@ -495,6 +507,8 @@ function renderGames() {
       <div class="loading"><div class="spinner"></div></div>
     </div>`;
 
+  // Если есть активные фильтры — сразу открываем панель.
+  if (Object.values(f).some(v => v)) toggleFilters('games-filters');
   loadGames();
 }
 
@@ -511,30 +525,26 @@ function toggleFilters(id) {
 }
 
 function applyGamesFilters() {
+  const v = (id) => (document.getElementById(id)?.value || '').trim();
   gamesFilters = {
-    mode: document.getElementById('gf-mode').value,
-    status: document.getElementById('gf-status').value,
-    result: document.getElementById('gf-result').value,
-    player_name: document.getElementById('gf-player').value,
-    comment: document.getElementById('gf-comment').value,
-    created_from: document.getElementById('gf-date-from').value,
-    created_to: document.getElementById('gf-date-to').value,
-    updated_from: document.getElementById('gf-updated-from').value,
-    updated_to: document.getElementById('gf-updated-to').value,
-    moves_min: document.getElementById('gf-moves-min').value,
-    moves_max: document.getElementById('gf-moves-max').value
+    status: v('gf-status'),
+    player_name: v('gf-player'),
+    comment: v('gf-comment'),
+    moves_min: v('gf-moves-min'),
+    moves_max: v('gf-moves-max'),
+    created_from: v('gf-date-from'),
+    created_to: v('gf-date-to'),
+    updated_from: v('gf-updated-from'),
+    updated_to: v('gf-updated-to')
   };
   gamesPage = 1;
   loadGames();
 }
 
 function resetGamesFilters() {
-  ['gf-mode', 'gf-status', 'gf-result', 'gf-player', 'gf-comment', 'gf-date-from', 'gf-date-to',
-    'gf-updated-from', 'gf-updated-to', 'gf-moves-min', 'gf-moves-max']
-      .forEach(id => { document.getElementById(id).value = ''; });
   gamesFilters = {};
   gamesPage = 1;
-  loadGames();
+  renderGames();
 }
 
 function changeGamesPage(p) {
@@ -542,14 +552,24 @@ function changeGamesPage(p) {
   loadGames();
 }
 
-function sortGames(field) {
-  if (gamesSortBy === field) {
-    gamesSortDir = gamesSortDir === 'asc' ? 'desc' : 'asc';
-  } else {
-    gamesSortBy = field;
-    gamesSortDir = 'desc';
-  }
-  loadGames();
+// Метки статусов/результатов круговых шахмат (коллекция cc_games).
+const CC_STATUS_LABELS = {
+  active: 'Идёт', check: 'Шах', checkmate: 'Мат', stalemate: 'Пат',
+  threefold: 'Троекратное повторение', resigned: 'Сдача', draw: 'Ничья',
+  abandoned: 'Прервана'
+};
+const CC_RESULT_LABELS = {
+  checkmate: 'Мат', stalemate: 'Пат', threefold: 'Троекратное повторение',
+  resignation: 'Сдача', draw: 'Ничья', abandoned: 'Прервана'
+};
+const CC_TERMINAL = ['checkmate', 'stalemate', 'threefold', 'resigned', 'draw', 'abandoned'];
+
+function ccStatusBadge(status) {
+  return `<span class="badge badge-${status}">${CC_STATUS_LABELS[status] || status}</span>`;
+}
+
+function openCcGame(id) {
+  window.location.href = '/chess.html?game=' + id;
 }
 
 async function loadGames() {
@@ -559,55 +579,53 @@ async function loadGames() {
   const params = new URLSearchParams();
   params.set('page', gamesPage);
   params.set('limit', 15);
-  params.set('sort_by', gamesSortBy);
-  params.set('sort_dir', gamesSortDir);
-
-  Object.entries(gamesFilters).forEach(([k, v]) => {
-    if (v) params.set(k, v);
+  Object.entries(gamesFilters || {}).forEach(([k, v]) => {
+    if (v != null && v !== '') params.set(k, v);
   });
 
   try {
-    const result = await api(`/games?${params}`);
+    const result = await api(`/cc/games?${params}`);
     if (result.data.length === 0) {
       container.innerHTML = '<div class="empty-state"><div class="empty-icon"></div><p>Партии не найдены</p></div>';
       return;
     }
-
-    const sortIcon = (field) => {
-      if (gamesSortBy !== field) return '';
-      return `<span class="sort-icon">${gamesSortDir === 'asc' ? '▲' : '▼'}</span>`;
-    };
 
     let html = `
       <div class="table-container">
         <table>
           <thead>
             <tr>
-              <th onclick="sortGames('mode')">Режим ${sortIcon('mode')}</th>
-              <th onclick="sortGames('status')">Статус ${sortIcon('status')}</th>
-              <th>Игрок 1</th>
-              <th>Игрок 2</th>
-              <th>Победитель</th>
-              <th onclick="sortGames('result')">Результат ${sortIcon('result')}</th>
+              <th>Статус</th>
+              <th>Белые</th>
+              <th>Чёрные</th>
               <th>Ходов</th>
-              <th>Комментарий</th>
-              <th onclick="sortGames('created_at')">Создана ${sortIcon('created_at')}</th>
-              <th onclick="sortGames('updated_at')">Обновлена ${sortIcon('updated_at')}</th>
+              <th>Результат</th>
+              <th>Очередь</th>
+              <th>Создана</th>
+              <th>Обновлена</th>
             </tr>
           </thead>
           <tbody>`;
 
     result.data.forEach(g => {
+      const terminal = CC_TERMINAL.indexOf(g.status) !== -1;
+      let winnerName = '';
+      if (g.winner_id) {
+        if (String(g.winner_id) === String(g.white_id)) winnerName = g.white_name;
+        else if (String(g.winner_id) === String(g.black_id)) winnerName = g.black_name;
+      }
+      const resultText = g.result
+        ? `${CC_RESULT_LABELS[g.result] || g.result}${winnerName ? ' — ' + escapeHtml(winnerName) : ''}`
+        : '—';
+      const turnText = terminal ? '—' : (g.turn === 'w' ? 'Белые' : 'Чёрные');
       html += `
-        <tr class="clickable" onclick="navigate('game-detail', {id:'${g._id}'})">
-          <td>${badgeHTML(g.mode)}</td>
-          <td>${badgeHTML(g.status)}</td>
-          <td>${escapeHtml(g.player1_name)}</td>
-          <td>${escapeHtml(g.player2_name)}</td>
-<td>${g.winner_name ? escapeHtml(g.winner_name) : '—'}</td>
-          <td>${g.result ? badgeHTML(g.result) : '—'}</td>
-          <td>${g.moves_count ?? '—'}</td>
-          <td>${escapeHtml(g.comment) || '—'}</td>
+        <tr class="clickable" onclick="openCcGame('${g._id}')">
+          <td>${ccStatusBadge(g.status)}</td>
+          <td>${escapeHtml(g.white_name || '—')}</td>
+          <td>${escapeHtml(g.black_name || '—')}</td>
+          <td>${g.move_number}</td>
+          <td>${resultText}</td>
+          <td>${turnText}</td>
           <td>${formatDate(g.created_at)}</td>
           <td>${formatDate(g.updated_at)}</td>
         </tr>`;
@@ -821,15 +839,29 @@ async function renderGameCreate() {
 
   try {
     const participants = await api('/participants');
+    const players = participants.filter(p => p.type === 'player');
+    const bots = participants.filter(p => p.type === 'bot');
+    const me = players.find(p => p._id === state.user.id);
 
-    const playerOptions = participants
-        .filter(p => p.type === 'player')
-        .map(p => `<option value="${p._id}">${escapeHtml(p.display_name)}</option>`)
-        .join('');
+    if (!me) {
+      main.innerHTML = `
+        <div class="page-title">
+          <span><a onclick="navigate('games')" style="cursor:pointer;color:var(--primary);text-decoration:none;">← Партии</a> / Новая партия</span>
+        </div>
+        <div class="empty-state"><p>Для вашего аккаунта не найден профиль игрока — создать партию нельзя.</p></div>`;
+      return;
+    }
 
-    const allOptions = participants
-        .map(p => `<option value="${p._id}">${escapeHtml(p.display_name)}</option>`)
+    const playerOpts = players
+        .filter(p => p._id !== state.user.id)
+        .map(p => `<option value="${p._id}" data-type="player">${escapeHtml(p.display_name)}</option>`)
         .join('');
+    const botOpts = bots
+        .map(p => `<option value="${p._id}" data-type="bot">${escapeHtml(p.display_name)}</option>`)
+        .join('');
+    const opponentOptions =
+        (playerOpts ? `<optgroup label="Игроки">${playerOpts}</optgroup>` : '') +
+        (botOpts ? `<optgroup label="Боты">${botOpts}</optgroup>` : '');
 
     main.innerHTML = `
       <div class="page-title">
@@ -839,24 +871,23 @@ async function renderGameCreate() {
         <h3 class="card-title">Создание партии</h3>
         <form onsubmit="handleCreateGame(event)">
           <div class="form-group">
-            <label>Режим</label>
-            <select class="form-control" id="gc-mode" onchange="updateGameCreatePlayers()" required>
-              <option value="hotseat">Игрок vs Игрок (hotseat)</option>
-              <option value="bot">Игрок vs Бот</option>
-            </select>
+            <label>Вы играете</label>
+            <input type="text" class="form-control" value="${escapeHtml(me.display_name)}" disabled>
+            <small style="color:var(--muted);">Партия создаётся от вашего имени — вы обязательно один из игроков.</small>
           </div>
           <div class="form-row">
             <div class="form-group">
-              <label>Игрок 1</label>
-              <select class="form-control" id="gc-player1" required>
-                ${playerOptions}
+              <label>Ваш цвет</label>
+              <select class="form-control" id="gc-color">
+                <option value="w">Белые</option>
+                <option value="b">Чёрные</option>
               </select>
             </div>
             <div class="form-group">
-              <label>Игрок 2</label>
-              <select class="form-control" id="gc-player2" required>
+              <label>Соперник</label>
+              <select class="form-control" id="gc-opponent" required>
                 <option value="">— Выберите —</option>
-                ${allOptions}
+                ${opponentOptions}
               </select>
             </div>
           </div>
@@ -864,50 +895,49 @@ async function renderGameCreate() {
             <label>Комментарий</label>
             <input type="text" class="form-control" id="gc-comment" placeholder="Необязательно">
           </div>
+          <small style="color:var(--muted);display:block;margin-bottom:12px;">С игроком — партия hotseat: ходы за обе стороны делаете вы на одном устройстве. С ботом — бот ходит сам через свой API.</small>
           <div class="form-actions">
-            <button type="submit" class="btn btn-primary" id="gc-btn">Создать партию</button>
+            <button type="submit" class="btn btn-primary" id="gc-btn">Создать и играть</button>
             <button type="button" class="btn btn-secondary" onclick="navigate('games')">Отмена</button>
           </div>
         </form>
       </div>`;
-
-    // Устанавливаем текущего пользователя как игрока 1
-    const p1Select = document.getElementById('gc-player1');
-    if (state.user) {
-      for (const opt of p1Select.options) {
-        if (opt.value === state.user.id) {
-          opt.selected = true;
-          break;
-        }
-      }
-    }
   } catch (err) {
     main.innerHTML = `<div class="empty-state"><p>Ошибка: ${escapeHtml(err.message)}</p></div>`;
   }
 }
 
-function updateGameCreatePlayers() {
-  // Можно расширить логику фильтрации при смене режима
-}
-
 async function handleCreateGame(e) {
   e.preventDefault();
   const btn = document.getElementById('gc-btn');
+
+  const color = document.getElementById('gc-color').value;
+  const opponentSelect = document.getElementById('gc-opponent');
+  const opponent = opponentSelect.value;
+  const comment = document.getElementById('gc-comment').value;
+
+  if (!opponent) {
+    showToast('Выберите соперника', 'error');
+    return;
+  }
+
+  // С ботом партия не-hotseat: бот ходит сам через свой API-ключ.
+  const selectedOpt = opponentSelect.selectedOptions[0];
+  const opponentIsBot = !!selectedOpt && selectedOpt.dataset.type === 'bot';
+  const hotseat = !opponentIsBot;
+
+  // Current user is always one of the two sides; colour decides which.
+  const white_id = color === 'w' ? state.user.id : opponent;
+  const black_id = color === 'w' ? opponent : state.user.id;
+
   btn.disabled = true;
-
   try {
-    const game = await api('/games', {
+    const cc = await api('/cc/games', {
       method: 'POST',
-      body: JSON.stringify({
-        mode: document.getElementById('gc-mode').value,
-        player1_id: document.getElementById('gc-player1').value,
-        player2_id: document.getElementById('gc-player2').value,
-        comment: document.getElementById('gc-comment').value
-      })
+      body: JSON.stringify({ white_id, black_id, hotseat, comment })
     });
-
     showToast('Партия создана!', 'success');
-    navigate('game-detail', { id: game._id });
+    window.location.href = '/chess.html?game=' + cc._id;
   } catch (err) {
     showToast(err.message, 'error');
     btn.disabled = false;
@@ -1209,40 +1239,46 @@ async function renderPlayerDetail(id) {
           <div class="filters-body" id="pgames-filters" style="display:none;">
             <div class="filters-grid">
               <div class="filter-group">
-                <label>Режим</label>
-                <select id="pgf-mode">
+                <label>Исход</label>
+                <select id="pgf-outcome">
                   <option value="">Все</option>
-                  <option value="hotseat">Hotseat</option>
-                  <option value="bot">Бот</option>
-                </select>
-              </div>
-              <div class="filter-group">
-                <label>Статус</label>
-                <select id="pgf-status">
-                  <option value="">Все</option>
-                  <option value="created">Создана</option>
-                  <option value="in_progress">В процессе</option>
-                  <option value="completed">Завершена</option>
+                  <option value="active">Идёт</option>
+                  <option value="win">Победы</option>
+                  <option value="loss">Поражения</option>
+                  <option value="draw">Ничьи</option>
                   <option value="abandoned">Прервана</option>
-                  <option value="paused">Пауза</option>
                 </select>
               </div>
               <div class="filter-group">
-                <label>Результат</label>
-                <select id="pgf-result">
-                  <option value="">Все</option>
-                  <option value="checkmate">Мат</option>
-                  <option value="stalemate">Пат</option>
-                  <option value="draw">Ничья</option>
-                </select>
+                <label>Соперник (имя)</label>
+                <input type="text" id="pgf-player" placeholder="Поиск по имени...">
               </div>
               <div class="filter-group">
-                <label>Дата (от)</label>
+                <label>Комментарий</label>
+                <input type="text" id="pgf-comment" placeholder="Поиск в комментариях...">
+              </div>
+              <div class="filter-group">
+                <label>Кол-во ходов</label>
+                <div class="filter-range">
+                  <input type="number" id="pgf-moves-min" placeholder="От" min="0">
+                  <input type="number" id="pgf-moves-max" placeholder="До" min="0">
+                </div>
+              </div>
+              <div class="filter-group">
+                <label>Дата создания (от)</label>
                 <input type="date" id="pgf-date-from">
               </div>
               <div class="filter-group">
-                <label>Дата (до)</label>
+                <label>Дата создания (до)</label>
                 <input type="date" id="pgf-date-to">
+              </div>
+              <div class="filter-group">
+                <label>Дата обновления (от)</label>
+                <input type="date" id="pgf-updated-from">
+              </div>
+              <div class="filter-group">
+                <label>Дата обновления (до)</label>
+                <input type="date" id="pgf-updated-to">
               </div>
             </div>
             <div class="filters-actions">
@@ -1266,20 +1302,30 @@ let playerGamesPage = 1;
 let playerGamesFilters = {};
 
 function applyPlayerGamesFilters(playerId) {
-  playerGamesFilters = {
-    mode: document.getElementById('pgf-mode').value,
-    status: document.getElementById('pgf-status').value,
-    result: document.getElementById('pgf-result').value,
-    created_from: document.getElementById('pgf-date-from').value,
-    created_to: document.getElementById('pgf-date-to').value
+  const v = (id) => (document.getElementById(id)?.value || '').trim();
+  const outcome = v('pgf-outcome');
+  // 'abandoned' — это статус, не исход; остальные значения уходят в outcome.
+  const filters = {
+    player_name: v('pgf-player'),
+    comment: v('pgf-comment'),
+    moves_min: v('pgf-moves-min'),
+    moves_max: v('pgf-moves-max'),
+    created_from: v('pgf-date-from'),
+    created_to: v('pgf-date-to'),
+    updated_from: v('pgf-updated-from'),
+    updated_to: v('pgf-updated-to')
   };
+  if (outcome === 'abandoned') filters.status = 'abandoned';
+  else if (outcome) filters.outcome = outcome;
+  playerGamesFilters = filters;
   playerGamesPage = 1;
   loadPlayerGames(playerId);
 }
 
 function resetPlayerGamesFilters(playerId) {
-  ['pgf-mode', 'pgf-status', 'pgf-result', 'pgf-date-from', 'pgf-date-to']
-      .forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+  ['pgf-outcome', 'pgf-player', 'pgf-comment', 'pgf-moves-min', 'pgf-moves-max',
+   'pgf-date-from', 'pgf-date-to', 'pgf-updated-from', 'pgf-updated-to']
+    .forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
   playerGamesFilters = {};
   playerGamesPage = 1;
   loadPlayerGames(playerId);
@@ -1296,12 +1342,15 @@ async function loadPlayerGames(playerId) {
   if (!container) return;
 
   const params = new URLSearchParams();
+  params.set('player_id', playerId);
   params.set('page', playerGamesPage);
   params.set('limit', 10);
-  Object.entries(playerGamesFilters).forEach(([k, v]) => { if (v) params.set(k, v); });
+  Object.entries(playerGamesFilters || {}).forEach(([k, v]) => {
+    if (v != null && v !== '') params.set(k, v);
+  });
 
   try {
-    const result = await api(`/players/${playerId}/games?${params}`);
+    const result = await api(`/cc/games?${params}`);
 
     if (result.data.length === 0) {
       container.innerHTML = '<div class="empty-state"><p>Партий пока нет</p></div>';
@@ -1313,36 +1362,36 @@ async function loadPlayerGames(playerId) {
         <table>
           <thead>
             <tr>
-              <th>Режим</th>
               <th>Статус</th>
+              <th>Цвет</th>
               <th>Соперник</th>
               <th>Результат</th>
               <th>Ходов</th>
-              <th>Дата/Время</th>
+              <th>Обновлена</th>
             </tr>
           </thead>
           <tbody>`;
 
     result.data.forEach(g => {
-      const isP1 = g.player1_id.toString() === playerId;
-      const opponent = isP1 ? g.player2_name : g.player1_name;
+      const isWhite = String(g.white_id) === String(playerId);
+      const opponent = isWhite ? (g.black_name || '—') : (g.white_name || '—');
       let outcome = '—';
       if (g.winner_id) {
-        outcome = g.winner_id.toString() === playerId
+        outcome = String(g.winner_id) === String(playerId)
             ? '<span style="color:var(--success);font-weight:600;">Победа</span>'
             : '<span style="color:var(--danger);font-weight:600;">Поражение</span>';
-      } else if (g.result === 'draw' || g.result === 'stalemate') {
-        outcome = '<span style="color:var(--warning);font-weight:600;">Ничья</span>';
+      } else if (g.result) {
+        outcome = `<span style="color:var(--warning);font-weight:600;">${CC_RESULT_LABELS[g.result] || g.result}</span>`;
       }
 
       html += `
-        <tr class="clickable" onclick="navigate('game-detail',{id:'${g._id}',fromPlayerId:'${playerId}'})">
-          <td>${badgeHTML(g.mode)}</td>
-          <td>${badgeHTML(g.status)}</td>
+        <tr class="clickable" onclick="openCcGame('${g._id}')">
+          <td>${ccStatusBadge(g.status)}</td>
+          <td>${isWhite ? 'Белые' : 'Чёрные'}</td>
           <td>${escapeHtml(opponent)}</td>
           <td>${outcome}</td>
-          <td>${g.moves_count ?? '—'}</td>
-          <td>${formatDate(g.created_at)}</td>
+          <td>${g.move_number}</td>
+          <td>${formatDate(g.updated_at)}</td>
         </tr>`;
     });
 
@@ -1664,7 +1713,11 @@ async function loadBotGames(botId) {
   if (!container) return;
 
   try {
-    const result = await api(`/players/${botId}/games?page=${botGamesPage}&limit=10`);
+    const params = new URLSearchParams();
+    params.set('player_id', botId);
+    params.set('page', botGamesPage);
+    params.set('limit', 10);
+    const result = await api(`/cc/games?${params}`);
 
     if (result.data.length === 0) {
       container.innerHTML = '<div class="empty-state"><p>Партий пока нет</p></div>';
@@ -1676,34 +1729,36 @@ async function loadBotGames(botId) {
         <table>
           <thead>
             <tr>
-              <th>Режим</th>
               <th>Статус</th>
+              <th>Цвет</th>
               <th>Соперник</th>
               <th>Результат</th>
-              <th>Дата</th>
+              <th>Ходов</th>
+              <th>Обновлена</th>
             </tr>
           </thead>
           <tbody>`;
 
     result.data.forEach(g => {
-      const isP1 = g.player1_id.toString() === botId;
-      const opponent = isP1 ? g.player2_name : g.player1_name;
+      const isWhite = String(g.white_id) === String(botId);
+      const opponent = isWhite ? (g.black_name || '—') : (g.white_name || '—');
       let outcome = '—';
       if (g.winner_id) {
-        outcome = g.winner_id.toString() === botId
+        outcome = String(g.winner_id) === String(botId)
             ? '<span style="color:var(--success);font-weight:600;">Победа</span>'
             : '<span style="color:var(--danger);font-weight:600;">Поражение</span>';
-      } else if (g.result === 'draw' || g.result === 'stalemate') {
-        outcome = '<span style="color:var(--warning);font-weight:600;">Ничья</span>';
+      } else if (g.result) {
+        outcome = `<span style="color:var(--warning);font-weight:600;">${CC_RESULT_LABELS[g.result] || g.result}</span>`;
       }
 
       html += `
-        <tr class="clickable" onclick="navigate('game-detail',{id:'${g._id}',fromBotId:'${botId}'})">
-          <td>${badgeHTML(g.mode)}</td>
-          <td>${badgeHTML(g.status)}</td>
+        <tr class="clickable" onclick="openCcGame('${g._id}')">
+          <td>${ccStatusBadge(g.status)}</td>
+          <td>${isWhite ? 'Белые' : 'Чёрные'}</td>
           <td>${escapeHtml(opponent)}</td>
           <td>${outcome}</td>
-          <td>${formatDateShort(g.created_at)}</td>
+          <td>${g.move_number}</td>
+          <td>${formatDateShort(g.updated_at)}</td>
         </tr>`;
     });
 

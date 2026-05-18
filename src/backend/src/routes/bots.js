@@ -10,5 +10,6 @@ router.get('/:id', optionalAuth, ctrl.getById);
 router.post('/', authMiddleware, requireAdmin, ctrl.create);
 router.put('/:id', authMiddleware, requireAdmin, ctrl.update);
 router.delete('/:id', authMiddleware, requireAdmin, ctrl.remove);
+router.post('/:id/regenerate-key', authMiddleware, requireAdmin, ctrl.regenerateKey);
 
 module.exports = router;
