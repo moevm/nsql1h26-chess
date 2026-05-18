@@ -7,34 +7,22 @@ const { getDb } = require('./connection');
 
 async function seedIfEmpty() {
   const db = getDb();
-  const [playersCount, gamesCount, ccGamesCount] = await Promise.all([
+  const [playersCount, ccGamesCount] = await Promise.all([
     db.collection('players').countDocuments({}, { limit: 1 }),
-    db.collection('games').countDocuments({}, { limit: 1 }),
     db.collection('cc_games').countDocuments({}, { limit: 1 })
   ]);
-  // Сидим, если ВСЕ ключевые коллекции пустые. Cc_games считаем отдельно,
-  // т.к. её сидинг был добавлен позже — иначе на уже инициализированной БД
-  // тестовые партии круговых шахмат не появятся.
-  const allEmpty = playersCount === 0 && gamesCount === 0 && ccGamesCount === 0;
 
   const file = path.join(__dirname, 'seed-data.json');
   const dump = BSON.EJSON.parse(fs.readFileSync(file, 'utf8'), { relaxed: false });
 
-  if (allEmpty) {
-    if (dump.players && dump.players.length > 0) {
-      await db.collection('players').insertMany(dump.players);
-      console.log(`Seeded ${dump.players.length} players (incl. bots)`);
-    }
-    if (dump.games && dump.games.length > 0) {
-      await db.collection('games').insertMany(dump.games);
-      console.log(`Seeded ${dump.games.length} games (legacy collection)`);
-    }
+  if (playersCount === 0 && dump.players && dump.players.length > 0) {
+    await db.collection('players').insertMany(dump.players);
+    console.log(`Seeded ${dump.players.length} players (incl. bots)`);
   }
 
-  // Cc_games сидим, если конкретно эта коллекция пуста — даже на «старой» БД.
-  if (ccGamesCount === 0 && dump.cc_games && dump.cc_games.length > 0) {
-    await db.collection('cc_games').insertMany(dump.cc_games);
-    console.log(`Seeded ${dump.cc_games.length} circular-chess games`);
+  if (ccGamesCount === 0 && dump.games && dump.games.length > 0) {
+    await db.collection('cc_games').insertMany(dump.games);
+    console.log(`Seeded ${dump.games.length} circular-chess games`);
   }
 }
 

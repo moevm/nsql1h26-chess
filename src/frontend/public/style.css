@@ -400,7 +400,6 @@ tr.clickable:hover {
 .badge-stalemate { background: #fef3c7; color: #92400e; }
 .badge-draw { background: #f1f5f9; color: #475569; }
 .badge-check { background: #fef3c7; color: #92400e; }
-.badge-threefold { background: #e0e7ff; color: #3730a3; }
 .badge-resigned { background: #fee2e2; color: #991b1b; }
 
 .pagination {

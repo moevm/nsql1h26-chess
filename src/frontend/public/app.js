@@ -458,7 +458,6 @@ function renderGames() {
               ${opt('check', 'Шах')}
               ${opt('checkmate', 'Мат')}
               ${opt('stalemate', 'Пат')}
-              ${opt('threefold', 'Троекратное повторение')}
               ${opt('resigned', 'Сдача')}
               ${opt('draw', 'Ничья')}
               ${opt('abandoned', 'Прервана')}
@@ -555,14 +554,13 @@ function changeGamesPage(p) {
 // Метки статусов/результатов круговых шахмат (коллекция cc_games).
 const CC_STATUS_LABELS = {
   active: 'Идёт', check: 'Шах', checkmate: 'Мат', stalemate: 'Пат',
-  threefold: 'Троекратное повторение', resigned: 'Сдача', draw: 'Ничья',
-  abandoned: 'Прервана'
+  resigned: 'Сдача', draw: 'Ничья', abandoned: 'Прервана'
 };
 const CC_RESULT_LABELS = {
-  checkmate: 'Мат', stalemate: 'Пат', threefold: 'Троекратное повторение',
+  checkmate: 'Мат', stalemate: 'Пат',
   resignation: 'Сдача', draw: 'Ничья', abandoned: 'Прервана'
 };
-const CC_TERMINAL = ['checkmate', 'stalemate', 'threefold', 'resigned', 'draw', 'abandoned'];
+const CC_TERMINAL = ['checkmate', 'stalemate', 'resigned', 'draw', 'abandoned'];
 
 function ccStatusBadge(status) {
   return `<span class="badge badge-${status}">${CC_STATUS_LABELS[status] || status}</span>`;
@@ -1254,6 +1252,7 @@ async function renderPlayerDetail(id) {
                 <input type="text" id="pgf-player" placeholder="Поиск по имени...">
               </div>
               <div class="filter-group">
+
                 <label>Комментарий</label>
                 <input type="text" id="pgf-comment" placeholder="Поиск в комментариях...">
               </div>
@@ -1323,8 +1322,7 @@ function applyPlayerGamesFilters(playerId) {
 }
 
 function resetPlayerGamesFilters(playerId) {
-  ['pgf-outcome', 'pgf-player', 'pgf-comment', 'pgf-moves-min', 'pgf-moves-max',
-   'pgf-date-from', 'pgf-date-to', 'pgf-updated-from', 'pgf-updated-to']
+  ['pgf-outcome', 'pgf-player', 'pgf-comment', 'pgf-moves-min', 'pgf-moves-max', 'pgf-date-from', 'pgf-date-to', 'pgf-updated-from', 'pgf-updated-to']
     .forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
   playerGamesFilters = {};
   playerGamesPage = 1;

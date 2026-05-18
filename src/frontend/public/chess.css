@@ -291,4 +291,4 @@ dialog form select { width: 100%; padding: 6px 8px; box-sizing: border-box; }
 .cc-status.active { background: #d1fae5; color: #065f46; }
 .cc-status.check { background: #fef3c7; color: #92400e; }
 .cc-status.checkmate, .cc-status.resigned { background: #fee2e2; color: #991b1b; }
-.cc-status.stalemate, .cc-status.threefold { background: #e0e7ff; color: #3730a3; }
+.cc-status.stalemate { background: #e0e7ff; color: #3730a3; }

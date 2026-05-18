@@ -5,7 +5,7 @@ const { loadPlayerNames } = require('../utils/enrich');
 const ApiError = require('../utils/ApiError');
 const cc = require('../game/circular-chess');
 
-const TERMINAL_STATUSES = new Set(['checkmate', 'stalemate', 'threefold', 'resigned', 'draw', 'abandoned']);
+const TERMINAL_STATUSES = new Set(['checkmate', 'stalemate', 'resigned', 'draw', 'abandoned']);
 
 function actorId(actor) {
   if (!actor) return null;
@@ -78,7 +78,7 @@ async function listGames(q) {
       andOr(filter, { winner_id: { $nin: [null, id] } });
     } else if (q.outcome === 'draw') {
       filter.winner_id = null;
-      filter.status = { $in: ['stalemate', 'threefold', 'draw'] };
+      filter.status = { $in: ['stalemate', 'draw'] };
     } else if (q.outcome === 'active') {
       filter.status = { $in: ['active', 'check'] };
     }
@@ -269,8 +269,8 @@ async function makeMove(id, moveInput, actor) {
   if (status === 'checkmate') {
     winnerId = game.turn === 'w' ? game.white_id : game.black_id;
     result = 'checkmate';
-  } else if (status === 'stalemate' || status === 'threefold') {
-    result = status === 'threefold' ? 'threefold' : 'stalemate';
+  } else if (status === 'stalemate') {
+    result = 'stalemate';
   }
 
   const update = {

@@ -14,7 +14,7 @@
   const R_INNER_HOLE = 20;
   const RING_THICKNESS = (R_OUTER - R_INNER_HOLE) / RINGS;
 
-  const TERMINAL_STATUSES = ['checkmate', 'stalemate', 'threefold', 'resigned', 'draw', 'abandoned'];
+  const TERMINAL_STATUSES = ['checkmate', 'stalemate', 'resigned', 'draw', 'abandoned'];
   const isTerminal = (status) => TERMINAL_STATUSES.indexOf(status) !== -1;
 
   // Cell (ring r, sector s) maps to:
@@ -224,7 +224,6 @@
       check: 'Шах! Ход ' + (game.turn === 'w' ? 'белых' : 'чёрных'),
       checkmate: 'Мат. Победили ' + (game.turn === 'w' ? 'чёрные' : 'белые'),
       stalemate: 'Пат. Ничья.',
-      threefold: 'Троекратное повторение. Ничья.',
       resigned: 'Игрок сдался.',
       draw: 'Ничья по соглашению.',
       abandoned: 'Партия прервана.'

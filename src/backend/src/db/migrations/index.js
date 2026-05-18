@@ -6,7 +6,8 @@ const migrations = [
   require('./003-player-roles'),
   require('./004-circular-chess'),
   require('./005-bot-api-keys'),
-  require('./006-cc-draw-status')
+  require('./006-cc-draw-status'),
+  require('./007-cc-drop-threefold')
 ];
 
 async function runMigrations() {

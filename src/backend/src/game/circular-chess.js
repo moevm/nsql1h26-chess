@@ -580,8 +580,6 @@
     if (moves.length === 0) {
       return inCheck ? 'checkmate' : 'stalemate';
     }
-    const fp = positionFingerprint(state);
-    if ((state.positionCounts[fp] || 0) >= 3) return 'threefold';
     return inCheck ? 'check' : 'active';
   }
 
