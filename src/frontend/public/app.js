@@ -1,8 +1,6 @@
 // =====================
 // Состояния
 // =====================
-// Безопасный парсинг — если в localStorage оказался мусор (например, из-за
-// ручного редактирования или старой версии приложения), не валим всё SPA.
 function safeParseUser() {
   const raw = localStorage.getItem('user');
   if (!raw) return null;
@@ -36,9 +34,6 @@ async function api(path, options = {}) {
       headers: { ...headers, ...options.headers }
     });
 
-    // Парсим тело вручную: если сервер вернул не-JSON (HTML-404 от nginx,
-    // пустой ответ от упавшего бэкенда и т.п.), выдаём понятное сообщение
-    // вместо «JSON.parse: unexpected character».
     const text = await res.text();
     let data = null;
     if (text) {
@@ -295,14 +290,93 @@ async function renderHome() {
 
   main.innerHTML = `
     <div class="home-hero">
-      <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap;">
-        ${state.user ? `<button class="btn btn-primary" onclick="navigate('game-create')">Новая партия</button>` : ''}
-        <button class="btn btn-secondary" onclick="navigate('games')">Смотреть партии</button>
-        <button class="btn btn-secondary" onclick="navigate('players')">Игроки</button>
-        <button class="btn btn-secondary" onclick="navigate('bots')">Боты</button>
-      </div>
       ${statsHtml}
+    </div>
+
+    <div class="home-grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(360px,1fr));gap:24px;margin-top:24px;">
+      <div class="card">
+        <h3 class="card-title">Топ-5 игроков по ELO</h3>
+        <div id="home-top-players"><div class="empty-state"><p>Загрузка…</p></div></div>
+      </div>
+      <div class="card">
+        <h3 class="card-title">Последние партии</h3>
+        <div id="home-recent-games"><div class="empty-state"><p>Загрузка…</p></div></div>
+      </div>
     </div>`;
+
+  loadHomeTopPlayers();
+  loadHomeRecentGames();
+}
+
+async function loadHomeTopPlayers() {
+  const host = document.getElementById('home-top-players');
+  if (!host) return;
+  try {
+    const res = await api('/players?sort_by=stats.elo&sort_dir=desc&limit=5');
+    const rows = (res.data || []).map((p, i) => {
+      const elo = (p.stats && p.stats.elo) || 0;
+      const w = (p.stats && p.stats.wins) || 0;
+      const l = (p.stats && p.stats.losses) || 0;
+      const d = (p.stats && p.stats.draws) || 0;
+      return `
+        <tr class="clickable" onclick="navigate('player-detail',{id:'${p._id}'})">
+          <td style="width:32px;color:var(--text-light);">${i + 1}</td>
+          <td>${escapeHtml(p.username)}</td>
+          <td style="font-weight:600;color:var(--primary);">${elo}</td>
+          <td><small style="color:var(--text-light);">${w}/${l}/${d}</small></td>
+        </tr>`;
+    }).join('');
+    if (!rows) {
+      host.innerHTML = '<div class="empty-state"><p>Игроков пока нет</p></div>';
+      return;
+    }
+    host.innerHTML = `
+      <div class="table-container">
+        <table>
+          <thead><tr><th>#</th><th>Игрок</th><th>ELO</th><th title="Победы / Поражения / Ничьи">В/П/Н</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>`;
+  } catch (err) {
+    host.innerHTML = `<div class="empty-state"><p>Ошибка: ${escapeHtml(err.message)}</p></div>`;
+  }
+}
+
+async function loadHomeRecentGames() {
+  const host = document.getElementById('home-recent-games');
+  if (!host) return;
+  try {
+    const res = await api('/cc/games?limit=5');
+    const rows = (res.data || []).map(g => {
+      let outcome = '—';
+      if (g.winner_id) {
+        const winnerName = String(g.winner_id) === String(g.white_id) ? g.white_name : g.black_name;
+        outcome = `<span style="color:var(--success);font-weight:600;">${escapeHtml(winnerName || '—')}</span>`;
+      } else if (g.result) {
+        outcome = `<span style="color:var(--warning);font-weight:600;">${CC_RESULT_LABELS[g.result] || g.result}</span>`;
+      }
+      return `
+        <tr class="clickable" onclick="openCcGame('${g._id}')">
+          <td>${ccStatusBadge(g.status)}</td>
+          <td>${escapeHtml(g.white_name || '—')} <span style="color:var(--text-light);">vs</span> ${escapeHtml(g.black_name || '—')}</td>
+          <td>${outcome}</td>
+          <td><small style="color:var(--text-light);">${formatDateShort(g.updated_at)}</small></td>
+        </tr>`;
+    }).join('');
+    if (!rows) {
+      host.innerHTML = '<div class="empty-state"><p>Партий пока нет</p></div>';
+      return;
+    }
+    host.innerHTML = `
+      <div class="table-container">
+        <table>
+          <thead><tr><th>Статус</th><th>Участники</th><th>Победитель</th><th>Обновлена</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>`;
+  } catch (err) {
+    host.innerHTML = `<div class="empty-state"><p>Ошибка: ${escapeHtml(err.message)}</p></div>`;
+  }
 }
 
 // =====================
