@@ -248,6 +248,32 @@ function escapeHtml(str) {
   return div.innerHTML;
 }
 
+// =====================
+// ELO (шахматная формула)
+// =====================
+function eloTitleFromValue(elo) {
+  if (elo >= 2500) return 'Гроссмейстер';
+  if (elo >= 2400) return 'Международный мастер';
+  if (elo >= 2200) return 'Мастер ФИДЕ';
+  if (elo >= 2000) return 'Кандидат в мастера';
+  if (elo >= 1800) return 'Эксперт';
+  if (elo >= 1600) return 'Опытный игрок';
+  if (elo >= 1400) return 'Уверенный любитель';
+  if (elo >= 1200) return 'Любитель';
+  return 'Новичок';
+}
+
+function formatEloCell(entry) {
+  if (!entry) return '—';
+  const delta = entry.elo_delta;
+  const color = delta > 0 ? 'var(--success)' : delta < 0 ? 'var(--danger)' : 'var(--text-muted, #888)';
+  const sign = delta > 0 ? '+' : '';
+  return `<span title="Было ${entry.elo_before}, стало ${entry.elo_after}. Ожидаемый результат по формуле ELO: ${entry.expected_score.toFixed(2)}">
+    <strong>${entry.elo_after}</strong>
+    <small style="color:${color};font-weight:600;margin-left:4px;">(${sign}${delta})</small>
+  </span>`;
+}
+
 function paginationHTML(pagination, onPageChange) {
   const { page, pages, total } = pagination;
   if (pages <= 1) return `<div class="pagination"><span class="pagination-info">Всего: ${total}</span></div>`;
@@ -1241,12 +1267,21 @@ async function renderPlayerDetail(id) {
     main.innerHTML = '<div class="empty-state"><p>Игрок не найден</p></div>';
     return;
   }
-  // Сбрасываем фильтры и страницу партий при открытии нового профиля
   playerGamesPage = 1;
   playerGamesFilters = {};
 
   try {
     const player = await api(`/players/${id}`);
+    let eloData = null;
+    try { eloData = await api(`/players/${id}/elo-history?limit=500`); }
+    catch {}
+    playerEloByGame = {};
+    if (eloData && Array.isArray(eloData.history)) {
+      for (const h of eloData.history) playerEloByGame[String(h.game_id)] = h;
+    }
+
+    const currentElo = (eloData && eloData.current_elo) || player.stats.elo || 0;
+    const eloTitle = (eloData && eloData.title) || eloTitleFromValue(currentElo);
 
     main.innerHTML = `
       <div class="page-title">
@@ -1285,9 +1320,9 @@ async function renderPlayerDetail(id) {
             <div class="value">${player.stats.total_games}</div>
             <div class="label">Всего партий</div>
           </div>
-          <div class="profile-stat">
-            <div class="value" style="color:var(--primary)">${player.stats.elo}</div>
-            <div class="label">ELO</div>
+          <div class="profile-stat" title="Рейтинг ELO: 1 / (1 + 10^((R_opp − R_self) / 400)). K=32, мастера — K=16, гроссы — K=10.">
+            <div class="value" style="color:var(--primary)">${currentElo}</div>
+            <div class="label">ELO <small style="opacity:.7">(${escapeHtml(eloTitle)})</small></div>
           </div>
         </div>
 
@@ -1305,40 +1340,47 @@ async function renderPlayerDetail(id) {
           <div class="filters-body" id="pgames-filters" style="display:none;">
             <div class="filters-grid">
               <div class="filter-group">
-                <label>Режим</label>
-                <select id="pgf-mode">
+                <label>Исход</label>
+                <select id="pgf-outcome">
                   <option value="">Все</option>
-                  <option value="hotseat">Hotseat</option>
-                  <option value="bot">Бот</option>
-                </select>
-              </div>
-              <div class="filter-group">
-                <label>Статус</label>
-                <select id="pgf-status">
-                  <option value="">Все</option>
-                  <option value="created">Создана</option>
-                  <option value="in_progress">В процессе</option>
-                  <option value="completed">Завершена</option>
+                  <option value="active">Идёт</option>
+                  <option value="win">Победы</option>
+                  <option value="loss">Поражения</option>
+                  <option value="draw">Ничьи</option>
                   <option value="abandoned">Прервана</option>
-                  <option value="paused">Пауза</option>
                 </select>
               </div>
               <div class="filter-group">
-                <label>Результат</label>
-                <select id="pgf-result">
-                  <option value="">Все</option>
-                  <option value="checkmate">Мат</option>
-                  <option value="stalemate">Пат</option>
-                  <option value="draw">Ничья</option>
-                </select>
+                <label>Соперник (имя)</label>
+                <input type="text" id="pgf-player" placeholder="Поиск по имени...">
               </div>
               <div class="filter-group">
-                <label>Дата (от)</label>
+
+                <label>Комментарий</label>
+                <input type="text" id="pgf-comment" placeholder="Поиск в комментариях...">
+              </div>
+              <div class="filter-group">
+                <label>Кол-во ходов</label>
+                <div class="filter-range">
+                  <input type="number" id="pgf-moves-min" placeholder="От" min="0">
+                  <input type="number" id="pgf-moves-max" placeholder="До" min="0">
+                </div>
+              </div>
+              <div class="filter-group">
+                <label>Дата создания (от)</label>
                 <input type="date" id="pgf-date-from">
               </div>
               <div class="filter-group">
-                <label>Дата (до)</label>
+                <label>Дата создания (до)</label>
                 <input type="date" id="pgf-date-to">
+              </div>
+              <div class="filter-group">
+                <label>Дата обновления (от)</label>
+                <input type="date" id="pgf-updated-from">
+              </div>
+              <div class="filter-group">
+                <label>Дата обновления (до)</label>
+                <input type="date" id="pgf-updated-to">
               </div>
             </div>
             <div class="filters-actions">
@@ -1360,22 +1402,31 @@ async function renderPlayerDetail(id) {
 
 let playerGamesPage = 1;
 let playerGamesFilters = {};
+let playerEloByGame = {};
 
 function applyPlayerGamesFilters(playerId) {
-  playerGamesFilters = {
-    mode: document.getElementById('pgf-mode').value,
-    status: document.getElementById('pgf-status').value,
-    result: document.getElementById('pgf-result').value,
-    created_from: document.getElementById('pgf-date-from').value,
-    created_to: document.getElementById('pgf-date-to').value
+  const v = (id) => (document.getElementById(id)?.value || '').trim();
+  const outcome = v('pgf-outcome');
+  const filters = {
+    player_name: v('pgf-player'),
+    comment: v('pgf-comment'),
+    moves_min: v('pgf-moves-min'),
+    moves_max: v('pgf-moves-max'),
+    created_from: v('pgf-date-from'),
+    created_to: v('pgf-date-to'),
+    updated_from: v('pgf-updated-from'),
+    updated_to: v('pgf-updated-to')
   };
+  if (outcome === 'abandoned') filters.status = 'abandoned';
+  else if (outcome) filters.outcome = outcome;
+  playerGamesFilters = filters;
   playerGamesPage = 1;
   loadPlayerGames(playerId);
 }
 
 function resetPlayerGamesFilters(playerId) {
-  ['pgf-mode', 'pgf-status', 'pgf-result', 'pgf-date-from', 'pgf-date-to']
-      .forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+  ['pgf-outcome', 'pgf-player', 'pgf-comment', 'pgf-moves-min', 'pgf-moves-max', 'pgf-date-from', 'pgf-date-to', 'pgf-updated-from', 'pgf-updated-to']
+    .forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
   playerGamesFilters = {};
   playerGamesPage = 1;
   loadPlayerGames(playerId);
@@ -1392,12 +1443,15 @@ async function loadPlayerGames(playerId) {
   if (!container) return;
 
   const params = new URLSearchParams();
+  params.set('player_id', playerId);
   params.set('page', playerGamesPage);
   params.set('limit', 10);
-  Object.entries(playerGamesFilters).forEach(([k, v]) => { if (v) params.set(k, v); });
+  Object.entries(playerGamesFilters || {}).forEach(([k, v]) => {
+    if (v != null && v !== '') params.set(k, v);
+  });
 
   try {
-    const result = await api(`/players/${playerId}/games?${params}`);
+    const result = await api(`/cc/games?${params}`);
 
     if (result.data.length === 0) {
       container.innerHTML = '<div class="empty-state"><p>Партий пока нет</p></div>';
@@ -1409,36 +1463,40 @@ async function loadPlayerGames(playerId) {
         <table>
           <thead>
             <tr>
-              <th>Режим</th>
               <th>Статус</th>
+              <th>Цвет</th>
               <th>Соперник</th>
               <th>Результат</th>
+              <th title="Изменение рейтинга ELO за партию по шахматной формуле">ELO</th>
               <th>Ходов</th>
-              <th>Дата/Время</th>
+              <th>Обновлена</th>
             </tr>
           </thead>
           <tbody>`;
 
     result.data.forEach(g => {
-      const isP1 = g.player1_id.toString() === playerId;
-      const opponent = isP1 ? g.player2_name : g.player1_name;
+      const isWhite = String(g.white_id) === String(playerId);
+      const opponent = isWhite ? (g.black_name || '—') : (g.white_name || '—');
       let outcome = '—';
       if (g.winner_id) {
-        outcome = g.winner_id.toString() === playerId
+        outcome = String(g.winner_id) === String(playerId)
             ? '<span style="color:var(--success);font-weight:600;">Победа</span>'
             : '<span style="color:var(--danger);font-weight:600;">Поражение</span>';
-      } else if (g.result === 'draw' || g.result === 'stalemate') {
-        outcome = '<span style="color:var(--warning);font-weight:600;">Ничья</span>';
+      } else if (g.result) {
+        outcome = `<span style="color:var(--warning);font-weight:600;">${CC_RESULT_LABELS[g.result] || g.result}</span>`;
       }
+      const eloEntry = playerEloByGame[String(g._id)];
+      const eloCell = eloEntry ? formatEloCell(eloEntry) : '—';
 
       html += `
-        <tr class="clickable" onclick="navigate('game-detail',{id:'${g._id}',fromPlayerId:'${playerId}'})">
-          <td>${badgeHTML(g.mode)}</td>
-          <td>${badgeHTML(g.status)}</td>
+        <tr class="clickable" onclick="openCcGame('${g._id}')">
+          <td>${ccStatusBadge(g.status)}</td>
+          <td>${isWhite ? 'Белые' : 'Чёрные'}</td>
           <td>${escapeHtml(opponent)}</td>
           <td>${outcome}</td>
-          <td>${g.moves_count ?? '—'}</td>
-          <td>${formatDate(g.created_at)}</td>
+          <td>${eloCell}</td>
+          <td>${g.move_number}</td>
+          <td>${formatDate(g.updated_at)}</td>
         </tr>`;
     });
 
