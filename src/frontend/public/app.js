@@ -1,9 +1,21 @@
 // =====================
 // Состояния
 // =====================
+// Безопасный парсинг — если в localStorage оказался мусор (например, из-за
+// ручного редактирования или старой версии приложения), не валим всё SPA.
+function safeParseUser() {
+  const raw = localStorage.getItem('user');
+  if (!raw) return null;
+  try { return JSON.parse(raw); }
+  catch {
+    localStorage.removeItem('user');
+    return null;
+  }
+}
+
 const state = {
   token: localStorage.getItem('token') || null,
-  user: JSON.parse(localStorage.getItem('user') || 'null'),
+  user: safeParseUser(),
   currentPage: 'home'
 };
 
@@ -24,10 +36,20 @@ async function api(path, options = {}) {
       headers: { ...headers, ...options.headers }
     });
 
-    const data = await res.json();
+    // Парсим тело вручную: если сервер вернул не-JSON (HTML-404 от nginx,
+    // пустой ответ от упавшего бэкенда и т.п.), выдаём понятное сообщение
+    // вместо «JSON.parse: unexpected character».
+    const text = await res.text();
+    let data = null;
+    if (text) {
+      try { data = JSON.parse(text); }
+      catch {
+        throw new Error(`Сервер вернул не-JSON (HTTP ${res.status}). Ответ начинается с: ${text.slice(0, 60)}`);
+      }
+    }
 
     if (!res.ok) {
-      throw new Error(data.error || `Ошибка ${res.status}`);
+      throw new Error((data && data.error) || `Ошибка ${res.status}`);
     }
 
     return data;
