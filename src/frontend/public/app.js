@@ -1521,7 +1521,7 @@ function renderBots() {
   main.innerHTML = `
     <div class="page-title">
       <span>Боты</span>
-      ${state.user ? '<button class="btn btn-primary" onclick="navigate(\'bot-create\')">+ Создать бота</button>' : ''}
+      ${state.user && state.user.role === 'admin' ? '<button class="btn btn-primary" onclick="navigate(\'bot-create\')">+ Создать бота</button>' : ''}
     </div>
 
     <div class="filters-panel">
@@ -1534,10 +1534,6 @@ function renderBots() {
           <div class="filter-group">
             <label>Название</label>
             <input type="text" id="bf-name" placeholder="Поиск по названию...">
-          </div>
-          <div class="filter-group">
-            <label>API URL</label>
-            <input type="text" id="bf-api-url" placeholder="Поиск по URL...">
           </div>
           <div class="filter-group">
             <label>Статус</label>
@@ -1611,7 +1607,6 @@ function renderBots() {
 function applyBotsFilters() {
   botsFilters = {
     name: document.getElementById('bf-name').value,
-    api_url: document.getElementById('bf-api-url').value,
     status: document.getElementById('bf-status').value,
     wins_min: document.getElementById('bf-wins-min').value,
     wins_max: document.getElementById('bf-wins-max').value,
@@ -1631,7 +1626,7 @@ function applyBotsFilters() {
 }
 
 function resetBotsFilters() {
-  ['bf-name','bf-api-url','bf-status',
+  ['bf-name','bf-status',
     'bf-wins-min','bf-wins-max','bf-losses-min','bf-losses-max',
     'bf-draws-min','bf-draws-max','bf-elo-min','bf-elo-max',
     'bf-date-from','bf-date-to','bf-updated-from','bf-updated-to']
@@ -1688,7 +1683,6 @@ async function loadBots() {
           <thead>
             <tr>
               <th onclick="sortBots('name')">Название ${sortIcon('name')}</th>
-              <th>API URL</th>
               <th onclick="sortBots('status')">Статус ${sortIcon('status')}</th>
               <th onclick="sortBots('stats.wins')">Победы ${sortIcon('stats.wins')}</th>
               <th onclick="sortBots('stats.losses')">Поражения ${sortIcon('stats.losses')}</th>
@@ -1706,7 +1700,6 @@ async function loadBots() {
       html += `
         <tr>
           <td><strong style="cursor:pointer;color:var(--primary);" onclick="navigate('bot-detail',{id:'${b._id}'})">${escapeHtml(b.name)}</strong></td>
-          <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${escapeHtml(b.api_url)}">${escapeHtml(b.api_url)}</td>
           <td>${badgeHTML(b.status)}</td>
           <td>${b.stats.wins}</td>
           <td>${b.stats.losses}</td>
@@ -1715,10 +1708,12 @@ async function loadBots() {
           <td>${b.stats.elo ?? 0}</td>
           <td>${formatDate(b.created_at)}</td>
           <td>${formatDate(b.updated_at)}</td>
-          <td>
+          <td style="white-space:nowrap;">
             ${state.user ? `
-              <button class="btn btn-secondary btn-sm" onclick="event.stopPropagation();navigate('bot-edit',{id:'${b._id}'})">✏️</button>
-              <button class="btn btn-danger btn-sm" onclick="event.stopPropagation();confirmDeleteBot('${b._id}','${escapeHtml(b.name)}')">🗑️</button>
+              <div style="display:flex;gap:6px;flex-wrap:nowrap;">
+                <button class="btn btn-secondary btn-sm" onclick="event.stopPropagation();navigate('bot-edit',{id:'${b._id}'})">Редактировать</button>
+                <button class="btn btn-danger btn-sm" onclick="event.stopPropagation();confirmDeleteBot('${b._id}','${escapeHtml(b.name)}')">Удалить</button>
+              </div>
             ` : ''}
           </td>
         </tr>`;
@@ -1748,7 +1743,6 @@ async function renderBotDetail(id) {
         </span>
         ${state.user ? `
           <div>
-            <button class="btn btn-secondary btn-sm" onclick="navigate('bot-edit',{id:'${bot._id}'})">✏Редактировать</button>
             <button class="btn btn-danger btn-sm" onclick="confirmDeleteBot('${bot._id}','${escapeHtml(bot.name)}')">Удалить</button>
           </div>
         ` : ''}
@@ -1759,7 +1753,6 @@ async function renderBotDetail(id) {
           <div class="profile-avatar" style="background:var(--warning);"></div>
           <div class="profile-info">
             <h2>${escapeHtml(bot.name)} ${badgeHTML(bot.status)}</h2>
-            <p><a href="${escapeHtml(bot.api_url)}" target="_blank" style="color:var(--primary);">${escapeHtml(bot.api_url)}</a></p>
             <p>Создан: ${formatDate(bot.created_at)}</p>
             ${bot.updated_at ? `<p>Обновлён: ${formatDate(bot.updated_at)}</p>` : ''}
             ${bot.comment ? `<p>${escapeHtml(bot.comment)}</p>` : ''}
@@ -1783,14 +1776,21 @@ async function renderBotDetail(id) {
             <div class="value">${bot.stats.total_games}</div>
             <div class="label">Всего партий</div>
           </div>
-          <div class="profile-stat">
-            <div class="value" style="color:var(--primary)">${bot.stats.elo}</div>
-            <div class="label">ELO</div>
+          <div class="profile-stat" title="Рейтинг ELO считается по шахматной формуле: E = 1 / (1 + 10^((R_opp − R_self) / 400)).">
+            <div class="value" style="color:var(--primary)">${bot.stats.elo ?? 0}</div>
+            <div class="label">ELO <small style="opacity:.7">(${escapeHtml(eloTitleFromValue(bot.stats.elo ?? 0))})</small></div>
           </div>
         </div>
 
         <button class="btn btn-secondary btn-sm" onclick="navigate('status-history',{type:'bot',id:'${bot._id}'})">История статусов</button>
+        ${state.user ? `<button class="btn btn-secondary btn-sm" style="margin-left:8px;" onclick="navigate('bot-edit',{id:'${bot._id}'})">✏ Редактировать</button>` : ''}
       </div>
+
+      ${state.user ? `
+      <div class="card">
+        <h3 class="card-title">API-ключ</h3>
+        <div id="bot-key-card"></div>
+      </div>` : ''}
 
       <div class="card">
         <h3 class="card-title">Последние партии</h3>
@@ -1800,8 +1800,61 @@ async function renderBotDetail(id) {
       </div>`;
 
     loadBotGames(id);
+    if (state.user) {
+      const fresh = (freshBotKey && freshBotKey.id === String(id)) ? freshBotKey.key : null;
+      freshBotKey = null;
+      renderBotKeyCard(String(id), bot.name, fresh);
+    }
   } catch (err) {
     main.innerHTML = `<div class="empty-state"><p>Ошибка: ${escapeHtml(err.message)}</p></div>`;
+  }
+}
+
+let freshBotKey = null;
+
+function renderBotKeyCard(id, name, key) {
+  const card = document.getElementById('bot-key-card');
+  if (!card) return;
+  if (key) {
+    card.innerHTML = `
+      <p style="color:var(--danger);font-weight:600;">Сохраните ключ сейчас — он показывается только один раз.</p>
+      <div class="form-group">
+        <input type="text" class="form-control" id="bot-key-value" readonly value="${escapeHtml(key)}"
+               style="font-family:monospace;" onclick="this.select()">
+      </div>
+      <p style="color:var(--text-light);font-size:0.9rem;">Передайте его контейнеру бота как переменную окружения <code>BOT_KEY</code>.</p>
+      <div class="form-actions">
+        <button class="btn btn-secondary btn-sm" onclick="copyBotKey()">Скопировать</button>
+        <button class="btn btn-danger btn-sm" onclick="executeRegenerateKey('${id}','${escapeHtml(name)}')">Перевыпустить ключ</button>
+      </div>`;
+  } else {
+    card.innerHTML = `
+      <p style="color:var(--text-light);">Ключ хранится в зашифрованном виде и повторно не показывается. Перевыпустите, чтобы получить новый (старый сразу перестанет работать).</p>
+      <button class="btn btn-danger btn-sm" onclick="executeRegenerateKey('${id}','${escapeHtml(name)}')">Перевыпустить ключ</button>`;
+  }
+}
+
+function copyBotKey() {
+  const input = document.getElementById('bot-key-value');
+  if (!input) return;
+  input.select();
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(input.value)
+      .then(() => showToast('Ключ скопирован', 'success'))
+      .catch(() => showToast('Скопируйте вручную (Ctrl+C)', 'error'));
+  } else {
+    document.execCommand('copy');
+    showToast('Ключ скопирован', 'success');
+  }
+}
+
+async function executeRegenerateKey(id, name) {
+  try {
+    const res = await api(`/bots/${id}/regenerate-key`, { method: 'POST' });
+    renderBotKeyCard(id, name, res.api_key || res.api_key_plain);
+    showToast('Ключ перевыпущен', 'success');
+  } catch (err) {
+    showToast(err.message, 'error');
   }
 }
 
@@ -1818,7 +1871,11 @@ async function loadBotGames(botId) {
   if (!container) return;
 
   try {
-    const result = await api(`/players/${botId}/games?page=${botGamesPage}&limit=10`);
+    const params = new URLSearchParams();
+    params.set('player_id', botId);
+    params.set('page', botGamesPage);
+    params.set('limit', 10);
+    const result = await api(`/cc/games?${params}`);
 
     if (result.data.length === 0) {
       container.innerHTML = '<div class="empty-state"><p>Партий пока нет</p></div>';
@@ -1830,34 +1887,36 @@ async function loadBotGames(botId) {
         <table>
           <thead>
             <tr>
-              <th>Режим</th>
               <th>Статус</th>
+              <th>Цвет</th>
               <th>Соперник</th>
               <th>Результат</th>
-              <th>Дата</th>
+              <th>Ходов</th>
+              <th>Обновлена</th>
             </tr>
           </thead>
           <tbody>`;
 
     result.data.forEach(g => {
-      const isP1 = g.player1_id.toString() === botId;
-      const opponent = isP1 ? g.player2_name : g.player1_name;
+      const isWhite = String(g.white_id) === String(botId);
+      const opponent = isWhite ? (g.black_name || '—') : (g.white_name || '—');
       let outcome = '—';
       if (g.winner_id) {
-        outcome = g.winner_id.toString() === botId
+        outcome = String(g.winner_id) === String(botId)
             ? '<span style="color:var(--success);font-weight:600;">Победа</span>'
             : '<span style="color:var(--danger);font-weight:600;">Поражение</span>';
-      } else if (g.result === 'draw' || g.result === 'stalemate') {
-        outcome = '<span style="color:var(--warning);font-weight:600;">Ничья</span>';
+      } else if (g.result) {
+        outcome = `<span style="color:var(--warning);font-weight:600;">${CC_RESULT_LABELS[g.result] || g.result}</span>`;
       }
 
       html += `
-        <tr class="clickable" onclick="navigate('game-detail',{id:'${g._id}',fromBotId:'${botId}'})">
-          <td>${badgeHTML(g.mode)}</td>
-          <td>${badgeHTML(g.status)}</td>
+        <tr class="clickable" onclick="openCcGame('${g._id}')">
+          <td>${ccStatusBadge(g.status)}</td>
+          <td>${isWhite ? 'Белые' : 'Чёрные'}</td>
           <td>${escapeHtml(opponent)}</td>
           <td>${outcome}</td>
-          <td>${formatDateShort(g.created_at)}</td>
+          <td>${g.move_number}</td>
+          <td>${formatDateShort(g.updated_at)}</td>
         </tr>`;
     });
 
@@ -1878,6 +1937,11 @@ function renderBotCreate() {
     navigate('login');
     return;
   }
+  if (state.user.role !== 'admin') {
+    showToast('Создавать ботов могут только администраторы', 'error');
+    navigate('bots');
+    return;
+  }
 
   const main = document.getElementById('main-content');
   main.innerHTML = `
@@ -1893,10 +1957,6 @@ function renderBotCreate() {
         <div class="form-group">
           <label>Название *</label>
           <input type="text" class="form-control" id="bc-name" placeholder="Название бота" required>
-        </div>
-        <div class="form-group">
-          <label>API URL *</label>
-          <input type="url" class="form-control" id="bc-api-url" placeholder="https://bot.example.com/api/move" required>
         </div>
         <div class="form-group">
           <label>Описание</label>
@@ -1920,12 +1980,12 @@ async function handleCreateBot(e) {
       method: 'POST',
       body: JSON.stringify({
         name: document.getElementById('bc-name').value.trim(),
-        api_url: document.getElementById('bc-api-url').value.trim(),
         comment: document.getElementById('bc-comment').value.trim()
       })
     });
 
-    showToast('Бот создан!', 'success');
+    freshBotKey = { id: String(bot._id), key: bot.api_key_plain };
+    showToast('Бот создан! Сохраните API-ключ на странице бота.', 'success');
     navigate('bot-detail', { id: bot._id });
   } catch (err) {
     showToast(err.message, 'error');
@@ -1960,10 +2020,6 @@ async function renderBotEdit(id) {
           <div class="form-group">
             <label>Название *</label>
             <input type="text" class="form-control" id="be-name" value="${escapeHtml(bot.name)}" required>
-          </div>
-          <div class="form-group">
-            <label>API URL *</label>
-            <input type="url" class="form-control" id="be-api-url" value="${escapeHtml(bot.api_url)}" required>
           </div>
           <div class="form-group">
             <label>Описание</label>
@@ -2015,7 +2071,6 @@ async function handleUpdateBot(e, id) {
   try {
     const body = {
       name: document.getElementById('be-name').value.trim(),
-      api_url: document.getElementById('be-api-url').value.trim(),
       comment: document.getElementById('be-comment').value.trim(),
       status: document.getElementById('be-status').value,
       reason: document.getElementById('be-reason').value.trim()
