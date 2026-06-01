@@ -1,8 +1,12 @@
 const { ObjectId } = require('mongodb');
 const { playersCol } = require('../models/playerModel');
 const { gamesCol } = require('../models/gameModel');
+const { ccGamesCol } = require('../models/circularChessModel');
 const { loadPlayerNames } = require('../utils/enrich');
+const { BASE_ELO, updateRatings, expectedScore, eloTitle } = require('../utils/elo');
 const ApiError = require('../utils/ApiError');
+
+const COUNTED_STATUSES = ['checkmate', 'stalemate', 'resigned', 'draw'];
 
 function applyRangeFilter(filter, key, min, max) {
   if (min || max) {
@@ -203,6 +207,86 @@ async function updatePlayer(id, body, currentUser) {
   );
 }
 
+async function getEloHistory(id, query) {
+  if (!ObjectId.isValid(id)) throw new ApiError(400, 'Некорректный ID');
+  const playerId = new ObjectId(id);
+
+  const player = await playersCol().findOne({ _id: playerId }, { projection: { stats: 1, username: 1, name: 1 } });
+  if (!player) throw new ApiError(404, 'Игрок не найден');
+
+  const games = await ccGamesCol().find({
+    status: { $in: COUNTED_STATUSES }
+  }).sort({ created_at: 1, _id: 1 }).toArray();
+
+  const ratings = {};
+  const ratingOf = (pid) => {
+    const k = pid.toString();
+    if (ratings[k] === undefined) ratings[k] = BASE_ELO;
+    return ratings[k];
+  };
+
+  const history = [];
+  for (const g of games) {
+    const w = g.white_id.toString();
+    const b = g.black_id.toString();
+    const whiteElo = ratingOf(g.white_id);
+    const blackElo = ratingOf(g.black_id);
+    let whiteScore;
+    if (g.winner_id) {
+      whiteScore = g.winner_id.toString() === w ? 1 : 0;
+    } else {
+      whiteScore = 0.5;
+    }
+    const { whiteNew, blackNew } = updateRatings(whiteElo, blackElo, whiteScore);
+    ratings[w] = whiteNew;
+    ratings[b] = blackNew;
+
+    const pidStr = playerId.toString();
+    if (w === pidStr || b === pidStr) {
+      const isWhite = w === pidStr;
+      const myBefore = isWhite ? whiteElo : blackElo;
+      const myAfter = isWhite ? whiteNew : blackNew;
+      const oppBefore = isWhite ? blackElo : whiteElo;
+      const oppId = isWhite ? g.black_id : g.white_id;
+      const myScore = isWhite ? whiteScore : 1 - whiteScore;
+      const exp = expectedScore(myBefore, oppBefore);
+      const outcome = myScore === 1 ? 'win' : myScore === 0 ? 'loss' : 'draw';
+      history.push({
+        game_id: g._id,
+        opponent_id: oppId,
+        opponent_elo_before: oppBefore,
+        color: isWhite ? 'w' : 'b',
+        outcome,
+        my_score: myScore,
+        expected_score: Math.round(exp * 1000) / 1000,
+        elo_before: myBefore,
+        elo_after: myAfter,
+        elo_delta: myAfter - myBefore,
+        played_at: g.updated_at
+      });
+    }
+  }
+
+  const limit = Math.min(500, Math.max(1, parseInt(query.limit) || 20));
+  const recent = history.slice(-limit).reverse();
+
+  const oppIds = recent.map(h => h.opponent_id);
+  const names = await loadPlayerNames(oppIds);
+  const enriched = recent.map(h => ({
+    ...h,
+    opponent_name: names[h.opponent_id.toString()] || 'Неизвестен'
+  }));
+
+  const currentElo = (player.stats && player.stats.elo) || BASE_ELO;
+  return {
+    current_elo: currentElo,
+    title: eloTitle(currentElo),
+    base_elo: BASE_ELO,
+    games_counted: history.length,
+    history: enriched
+  };
+}
+
 module.exports = {
-  listPlayers, getPlayerById, getPlayerGames, getStatusHistory, updatePlayer
+  listPlayers, getPlayerById, getPlayerGames, getStatusHistory, updatePlayer, getEloHistory
 };

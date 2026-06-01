@@ -3,7 +3,10 @@ const { getDb } = require('../connection');
 const migrations = [
   require('./001-init-schema'),
   require('./002-stats-int'),
-  require('./003-player-roles')
+  require('./003-player-roles'),
+  require('./004-circular-chess'),
+  require('./006-cc-draw-status'),
+  require('./007-cc-drop-threefold'),
 ];
 
 async function runMigrations() {

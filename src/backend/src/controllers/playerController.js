@@ -17,4 +17,8 @@ const update = handle(async (req, res) =>
   res.json(await playerService.updatePlayer(req.params.id, req.body, req.user))
 );
 
-module.exports = { list, getById, games, statusHistory, update };
+const eloHistory = handle(async (req, res) =>
+  res.json(await playerService.getEloHistory(req.params.id, req.query))
+);
+
+module.exports = { list, getById, games, statusHistory, update, eloHistory };
