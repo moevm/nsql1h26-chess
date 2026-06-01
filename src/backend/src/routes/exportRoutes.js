@@ -5,7 +5,7 @@ const { requireAdmin } = require('../middleware/admin');
 
 const router = express.Router();
 
-router.get('/export', authMiddleware, ctrl.exportAll);
+router.get('/export', authMiddleware, requireAdmin, ctrl.exportAll);
 router.post('/import', authMiddleware, requireAdmin, ctrl.importAll);
 
 module.exports = router;

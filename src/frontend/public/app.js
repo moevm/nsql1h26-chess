@@ -2827,14 +2827,26 @@ async function confirmDeleteGame(gameId) {
 // =====================
 function renderImportExport() {
   const main = document.getElementById('main-content');
+  const isAdmin = !!state.user && state.user.role === 'admin';
+  const gateAttr = isAdmin
+    ? ''
+    : (state.user
+        ? 'disabled title="Доступно только администраторам"'
+        : 'disabled title="Требуется авторизация"');
+
   main.innerHTML = `
     <div class="page-title"><span>Импорт / Экспорт данных</span></div>
+
+    ${!isAdmin ? `
+      <div class="card" style="max-width:900px;margin-bottom:16px;background:#fef3c7;color:#92400e;">
+        ${state.user ? 'Импорт и экспорт доступны только администраторам.' : 'Импорт и экспорт доступны только авторизованным администраторам.'}
+      </div>` : ''}
 
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;max-width:900px;">
       <div class="card">
         <h3 class="card-title">Экспорт</h3>
         <p style="color:var(--text-light);margin-bottom:16px;">Скачать все данные приложения (игроки, боты, партии) в формате JSON.</p>
-        <button class="btn btn-primary" onclick="handleExport()" ${state.user ? '' : 'disabled title="Требуется авторизация"'}>Экспортировать всё</button>
+        <button class="btn btn-primary" onclick="handleExport()" ${gateAttr}>Экспортировать всё</button>
       </div>
 
       <div class="card">
@@ -2842,7 +2854,7 @@ function renderImportExport() {
         <p style="color:var(--text-light);margin-bottom:12px;">Загрузить данные из JSON-файла, полученного при экспорте.</p>
         <div class="form-group">
           <label>Стратегия при конфликтах</label>
-          <select class="form-control" id="imp-strategy">
+          <select class="form-control" id="imp-strategy" ${isAdmin ? '' : 'disabled'}>
             <option value="skip">Пропустить существующие</option>
             <option value="overwrite">Перезаписать</option>
             <option value="add">Добавить как новые</option>
@@ -2850,9 +2862,9 @@ function renderImportExport() {
         </div>
         <div class="form-group">
           <label>Файл JSON</label>
-          <input type="file" class="form-control" id="imp-file" accept=".json">
+          <input type="file" class="form-control" id="imp-file" accept=".json" ${isAdmin ? '' : 'disabled'}>
         </div>
-        <button class="btn btn-primary" onclick="handleImport()" ${state.user ? '' : 'disabled title="Требуется авторизация"'}>Импортировать всё</button>
+        <button class="btn btn-primary" onclick="handleImport()" ${gateAttr}>Импортировать всё</button>
         <div id="imp-result" style="margin-top:12px;"></div>
       </div>
     </div>`;
@@ -2863,6 +2875,10 @@ async function handleExport() {
     showToast('Необходимо авторизоваться', 'error');
     return;
   }
+  if (state.user.role !== 'admin') {
+    showToast('Экспорт доступен только администраторам', 'error');
+    return;
+  }
   try {
     const res = await fetch(`${API_BASE}/export`, {
       headers: { 'Authorization': `Bearer ${state.token}` }
@@ -2871,6 +2887,7 @@ async function handleExport() {
       logout();
       throw new Error('Сессия истекла, войдите заново');
     }
+    if (res.status === 403) throw new Error('Экспорт доступен только администраторам');
     if (!res.ok) throw new Error('Ошибка экспорта');
     const blob = await res.blob();
     const url = URL.createObjectURL(blob);
@@ -2888,6 +2905,10 @@ async function handleExport() {
 async function handleImport() {
   if (!state.user) {
     showToast('Необходимо авторизоваться', 'error');
+    return;
+  }
+  if (state.user.role !== 'admin') {
+    showToast('Импорт доступен только администраторам', 'error');
     return;
   }
   const fileInput = document.getElementById('imp-file');
