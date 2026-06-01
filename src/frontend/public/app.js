@@ -880,9 +880,14 @@ async function renderGameDetail(id) {
 
 function renderMovesTable(moves) {
   if (!moves || moves.length === 0) return '<div class="empty-state"><p>Ходов нет</p></div>';
+  const sq = (v) => {
+    if (v == null) return '—';
+    if (typeof v === 'object' && 'r' in v && 's' in v) return `r${v.r}s${v.s}`;
+    return escapeHtml(String(v));
+  };
   return `
     <div class="table-container">
-      <table>
+      <table class="moves-table">
         <thead>
           <tr>
             <th>№</th>
@@ -897,18 +902,28 @@ function renderMovesTable(moves) {
           </tr>
         </thead>
         <tbody>
-          ${moves.map(m => `
-            <tr>
-              <td>${m.move_number}</td>
-              <td>${escapeHtml(m.player_name)}</td>
-              <td>${escapeHtml(m.piece)}</td>
-              <td>${escapeHtml(m.from_sq)}</td>
-              <td>${escapeHtml(m.to_sq)}</td>
-              <td>${m.captured ? escapeHtml(m.captured) : '—'}</td>
-              <td>${m.check ? '<span class="badge badge-checkmate">Шах</span>' : '—'}</td>
-              <td>${m.castling ? '<span class="badge badge-hotseat">Рокировка</span>' : '—'}</td>
-              <td>${formatDate(m.timestamp)}</td>
-            </tr>`).join('')}
+          ${moves.map((m, i) => {
+            const num = m.move_number != null ? m.move_number : m.number;
+            const piece = m.piece || m.piece_type || '—';
+            const from = m.from_sq != null ? m.from_sq : m.from;
+            const to = m.to_sq != null ? m.to_sq : m.to;
+            const isCheck = m.check || m.is_check || m.is_checkmate;
+            const isCastle = m.castling || m.is_castling;
+            const captured = m.captured;
+            const capturedLabel = captured ? (typeof captured === 'object' ? (captured.piece_type || 'фигура') : escapeHtml(String(captured))) : '—';
+            return `
+            <tr class="move-row" data-move-index="${i}" onclick="jumpReplayTo(${i + 1})" style="cursor:pointer;">
+              <td>${num != null ? num : (i + 1)}</td>
+              <td>${escapeHtml(m.player_name || (m.color === 'w' ? 'Белые' : m.color === 'b' ? 'Чёрные' : '—'))}</td>
+              <td>${escapeHtml(piece)}</td>
+              <td>${sq(from)}</td>
+              <td>${sq(to)}</td>
+              <td>${capturedLabel}</td>
+              <td>${isCheck ? '<span class="badge badge-checkmate">Шах</span>' : '—'}</td>
+              <td>${isCastle ? '<span class="badge badge-hotseat">Рокировка</span>' : '—'}</td>
+              <td>${(m.played_at || m.timestamp) ? formatDate(m.played_at || m.timestamp) : '—'}</td>
+            </tr>`;
+          }).join('')}
         </tbody>
       </table>
     </div>`;
@@ -942,6 +957,170 @@ function resetMovesFilter() {
       .forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
   const container = document.getElementById('moves-table-container');
   if (container) container.innerHTML = renderMovesTable(window._gameMoves || []);
+  if (window._replay) highlightReplayRow(window._replay.step);
+}
+
+// =====================
+// Перемотка партии по шагам
+// =====================
+const REPLAY_SVG_NS = 'http://www.w3.org/2000/svg';
+const REPLAY_FILLED = { K: '♚', Q: '♛', R: '♜', B: '♝', N: '♞', P: '♟' };
+const REPLAY_RINGS = 4;
+const REPLAY_SECTORS = 16;
+const REPLAY_R_OUTER = 90;
+const REPLAY_R_INNER = 20;
+const REPLAY_RING_THICK = (REPLAY_R_OUTER - REPLAY_R_INNER) / REPLAY_RINGS;
+
+function replayCellGeometry(r, s) {
+  const rOuter = REPLAY_R_OUTER - r * REPLAY_RING_THICK;
+  const rInner = rOuter - REPLAY_RING_THICK;
+  const step = (2 * Math.PI) / REPLAY_SECTORS;
+  const a1 = -Math.PI / 2 + s * step;
+  const a2 = a1 + step;
+  return { rOuter, rInner, a1, a2 };
+}
+function replayCellPath(r, s) {
+  const g = replayCellGeometry(r, s);
+  const x1o = g.rOuter * Math.cos(g.a1), y1o = g.rOuter * Math.sin(g.a1);
+  const x2o = g.rOuter * Math.cos(g.a2), y2o = g.rOuter * Math.sin(g.a2);
+  const x1i = g.rInner * Math.cos(g.a1), y1i = g.rInner * Math.sin(g.a1);
+  const x2i = g.rInner * Math.cos(g.a2), y2i = g.rInner * Math.sin(g.a2);
+  return `M ${x1i} ${y1i} L ${x1o} ${y1o} A ${g.rOuter} ${g.rOuter} 0 0 1 ${x2o} ${y2o} L ${x2i} ${y2i} A ${g.rInner} ${g.rInner} 0 0 0 ${x1i} ${y1i} Z`;
+}
+function replayCellCenter(r, s) {
+  const g = replayCellGeometry(r, s);
+  const midR = (g.rOuter + g.rInner) / 2;
+  const midA = (g.a1 + g.a2) / 2;
+  return { x: midR * Math.cos(midA), y: midR * Math.sin(midA), midR };
+}
+
+function renderReplayBoard(host, board, lastMove) {
+  while (host.firstChild) host.removeChild(host.firstChild);
+  const svg = document.createElementNS(REPLAY_SVG_NS, 'svg');
+  svg.setAttribute('viewBox', '-100 -100 200 200');
+  host.appendChild(svg);
+  for (let r = 0; r < REPLAY_RINGS; r++) {
+    for (let s = 0; s < REPLAY_SECTORS; s++) {
+      const path = document.createElementNS(REPLAY_SVG_NS, 'path');
+      path.setAttribute('d', replayCellPath(r, s));
+      let cls = 'cc-cell' + (((r + s) % 2 === 0) ? ' dark' : '');
+      if (lastMove && (
+        (lastMove.from && lastMove.from.r === r && lastMove.from.s === s) ||
+        (lastMove.to && lastMove.to.r === r && lastMove.to.s === s)
+      )) cls += ' last-move';
+      path.setAttribute('class', cls);
+      svg.appendChild(path);
+    }
+  }
+  for (let r = 0; r < REPLAY_RINGS; r++) {
+    for (let s = 0; s < REPLAY_SECTORS; s++) {
+      const p = board[r][s];
+      if (!p) continue;
+      const c = replayCellCenter(r, s);
+      const text = document.createElementNS(REPLAY_SVG_NS, 'text');
+      text.setAttribute('x', c.x);
+      text.setAttribute('y', c.y);
+      const fontSize = Math.max(11, Math.min(15, c.midR * 0.2));
+      text.setAttribute('font-size', fontSize);
+      text.setAttribute('class', 'cc-piece ' + (p.color === 'w' ? 'white' : 'black'));
+      text.textContent = REPLAY_FILLED[p.type] || '?';
+      svg.appendChild(text);
+    }
+  }
+}
+
+function initGameReplay(moves) {
+  const cc = window.CircularChess;
+  if (!cc || typeof cc.Engine !== 'function') {
+    const host = document.getElementById('replay-board-host');
+    if (host) host.innerHTML = '<div class="empty-state" style="padding:16px;"><p>Библиотека шахмат не загружена</p></div>';
+    return;
+  }
+
+  const snapshots = [];
+  try {
+    const engine = new cc.Engine();
+    snapshots.push(engine.getBoard());
+    for (const m of moves) {
+      const from = m.from && typeof m.from === 'object' ? m.from : null;
+      const to = m.to && typeof m.to === 'object' ? m.to : null;
+      if (!from || !to) throw new Error('Ход без координат');
+      engine.move({ from: { r: from.r, s: from.s }, to: { r: to.r, s: to.s }, promotion: m.promotion || null });
+      snapshots.push(engine.getBoard());
+    }
+  } catch (err) {
+    const host = document.getElementById('replay-board-host');
+    if (host) host.innerHTML = `<div class="empty-state" style="padding:16px;"><p>Не удалось проиграть ходы: ${escapeHtml(err.message)}</p></div>`;
+    return;
+  }
+
+  window._replay = { moves, snapshots, step: 0 };
+  setReplayStep(moves.length);
+
+  const bind = (id, ev, fn) => { const el = document.getElementById(id); if (el) el.addEventListener(ev, fn); };
+  bind('replay-first', 'click', () => setReplayStep(0));
+  bind('replay-prev',  'click', () => setReplayStep(window._replay.step - 1));
+  bind('replay-next',  'click', () => setReplayStep(window._replay.step + 1));
+  bind('replay-last',  'click', () => setReplayStep(window._replay.moves.length));
+  bind('replay-step-input', 'change', (e) => setReplayStep(parseInt(e.target.value, 10) || 0));
+  document.addEventListener('keydown', replayKeyHandler);
+}
+
+function replayKeyHandler(e) {
+  if (!window._replay) return;
+  const tag = (e.target && e.target.tagName) || '';
+  if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+  if (e.key === 'ArrowLeft')  { setReplayStep(window._replay.step - 1); e.preventDefault(); }
+  if (e.key === 'ArrowRight') { setReplayStep(window._replay.step + 1); e.preventDefault(); }
+  if (e.key === 'Home')       { setReplayStep(0); e.preventDefault(); }
+  if (e.key === 'End')        { setReplayStep(window._replay.moves.length); e.preventDefault(); }
+}
+
+function setReplayStep(step) {
+  const r = window._replay;
+  if (!r) return;
+  step = Math.max(0, Math.min(step, r.moves.length));
+  r.step = step;
+  const host = document.getElementById('replay-board-host');
+  if (host) {
+    const lastMove = step > 0 ? r.moves[step - 1] : null;
+    renderReplayBoard(host, r.snapshots[step], lastMove);
+  }
+  const input = document.getElementById('replay-step-input');
+  if (input) input.value = step;
+  const info = document.getElementById('replay-move-info');
+  if (info) {
+    if (step === 0) {
+      info.textContent = 'Начальная позиция';
+    } else {
+      const m = r.moves[step - 1];
+      const side = m.color === 'w' ? 'белые' : m.color === 'b' ? 'чёрные' : '—';
+      const notation = m.notation || `${m.from ? `r${m.from.r}s${m.from.s}` : '?'} → ${m.to ? `r${m.to.r}s${m.to.s}` : '?'}`;
+      info.textContent = `Ход ${step}: ${side} — ${notation}`;
+    }
+  }
+  const setDis = (id, v) => { const el = document.getElementById(id); if (el) el.disabled = v; };
+  setDis('replay-first', step === 0);
+  setDis('replay-prev',  step === 0);
+  setDis('replay-next',  step === r.moves.length);
+  setDis('replay-last',  step === r.moves.length);
+  highlightReplayRow(step);
+}
+
+function highlightReplayRow(step) {
+  document.querySelectorAll('.move-row').forEach(tr => {
+    const i = parseInt(tr.dataset.moveIndex, 10);
+    tr.classList.toggle('is-current-move', i === step - 1);
+  });
+  if (step > 0) {
+    const cur = document.querySelector(`.move-row[data-move-index="${step - 1}"]`);
+    if (cur && cur.scrollIntoView) cur.scrollIntoView({ block: 'nearest' });
+  }
+}
+
+function jumpReplayTo(step) {
+  if (!window._replay) return;
+  setReplayStep(step);
 }
 
 // =====================
