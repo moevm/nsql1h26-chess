@@ -3,7 +3,7 @@ const cors = require('cors');
 const { PORT } = require('./config/env');
 const { connectDB } = require('./db/connection');
 const { runMigrations } = require('./db/migrations');
-const { seedIfEmpty, seedPasswords } = require('./db/seed');
+const { seedIfEmpty, seedPasswords, seedBotApiKeys } = require('./db/seed');
 const apiRoutes = require('./routes');
 const { errorHandler } = require('./middleware/errorHandler');
 
@@ -18,6 +18,7 @@ connectDB()
     await runMigrations();
     await seedIfEmpty();
     await seedPasswords();
+    await seedBotApiKeys();
     app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
   })
   .catch(err => {

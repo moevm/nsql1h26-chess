@@ -1,7 +1,10 @@
+const crypto = require('crypto');
 const { ObjectId, Int32 } = require('mongodb');
 const { playersCol } = require('../models/playerModel');
 const { gamesCol } = require('../models/gameModel');
 const ApiError = require('../utils/ApiError');
+
+const newApiKey = () => crypto.randomBytes(16).toString('hex');
 
 const zeroStats = () => ({
   wins: new Int32(0),
@@ -30,7 +33,6 @@ function applyDateRangeFilter(filter, key, from, to) {
 async function listBots(q) {
   const filter = { type: 'bot' };
   if (q.name) filter.name = { $regex: q.name, $options: 'i' };
-  if (q.api_url) filter.api_url = { $regex: q.api_url, $options: 'i' };
   if (q.status) filter.status = q.status;
   if (q.comment) filter.comment = { $regex: q.comment, $options: 'i' };
 
@@ -68,18 +70,19 @@ async function getBotById(id) {
   return bot;
 }
 
-async function createBot({ name, api_url, comment }, currentUser) {
-  if (!name || !api_url) throw new ApiError(400, 'Название и API URL обязательны');
+async function createBot({ name, comment }, currentUser) {
+  if (!name) throw new ApiError(400, 'Название обязательно');
   if (name.length < 2) throw new ApiError(400, 'Название должно содержать минимум 2 символа');
 
   const existing = await playersCol().findOne({ type: 'bot', name });
   if (existing) throw new ApiError(409, 'Бот с таким названием уже существует');
 
   const now = new Date();
+  const apiKey = newApiKey();
   const result = await playersCol().insertOne({
     type: 'bot',
     name,
-    api_url,
+    api_key: apiKey,
     status: 'draft',
     comment: comment || '',
     created_at: now,
@@ -94,7 +97,20 @@ async function createBot({ name, api_url, comment }, currentUser) {
     }]
   });
 
-  return playersCol().findOne({ _id: result.insertedId });
+  const created = await playersCol().findOne({ _id: result.insertedId });
+  return { ...created, api_key_plain: apiKey };
+}
+
+async function regenerateApiKey(id) {
+  if (!ObjectId.isValid(id)) throw new ApiError(400, 'Некорректный ID');
+  const bot = await playersCol().findOne({ _id: new ObjectId(id), type: 'bot' });
+  if (!bot) throw new ApiError(404, 'Бот не найден');
+  const apiKey = newApiKey();
+  await playersCol().updateOne(
+    { _id: bot._id },
+    { $set: { api_key: apiKey, updated_at: new Date() } }
+  );
+  return { _id: bot._id, name: bot.name, api_key: apiKey };
 }
 
 async function updateBot(id, body, currentUser) {
@@ -102,7 +118,7 @@ async function updateBot(id, body, currentUser) {
   const bot = await playersCol().findOne({ _id: new ObjectId(id), type: 'bot' });
   if (!bot) throw new ApiError(404, 'Бот не найден');
 
-  const { name, api_url, comment, status, reason } = body;
+  const { name, comment, status, reason } = body;
   const updates = { updated_at: new Date() };
   const pushOps = {};
 
@@ -116,7 +132,6 @@ async function updateBot(id, body, currentUser) {
     }
     updates.name = name;
   }
-  if (api_url !== undefined) updates.api_url = api_url;
   if (comment !== undefined) updates.comment = comment;
 
   if (status !== undefined && status !== bot.status) {
@@ -154,4 +169,4 @@ async function deleteBot(id) {
   return { message: 'Бот удалён' };
 }
 
-module.exports = { listBots, getBotById, createBot, updateBot, deleteBot };
+module.exports = { listBots, getBotById, createBot, updateBot, deleteBot, regenerateApiKey };

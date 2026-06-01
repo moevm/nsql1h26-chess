@@ -1,5 +1,6 @@
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
 const { BSON, Int32 } = require('mongodb');
 const { getDb } = require('./connection');
@@ -113,4 +114,22 @@ async function seedPasswords() {
   }
 }
 
-module.exports = { seedIfEmpty, seedPasswords, recomputeStatsFromGames };
+async function seedBotApiKeys() {
+  const db = getDb();
+  const bots = await db.collection('players').find({
+    type: 'bot',
+    $or: [{ api_key: { $exists: false } }, { api_key: null }]
+  }).toArray();
+
+  for (const bot of bots) {
+    const key = crypto.randomBytes(16).toString('hex');
+    await db.collection('players').updateOne(
+      { _id: bot._id },
+      { $set: { api_key: key, updated_at: new Date() } },
+      { bypassDocumentValidation: true }
+    );
+    console.log(`API key for bot "${bot.name}": ${key}`);
+  }
+}
+
+module.exports = { seedIfEmpty, seedPasswords, seedBotApiKeys, recomputeStatsFromGames };

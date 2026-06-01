@@ -24,8 +24,7 @@ const playerValidator = {
       email: { bsonType: 'string' },
       password_hash: { bsonType: 'string' },
       role: { enum: ['admin', 'user'], description: 'Роль игрока (только для type=player)' },
-      name: { bsonType: 'string' },
-      api_url: { bsonType: 'string' }
+      name: { bsonType: 'string' }
     },
     oneOf: [
       {
@@ -34,7 +33,7 @@ const playerValidator = {
       },
       {
         properties: { type: { enum: ['bot'] } },
-        required: ['name', 'api_url']
+        required: ['name']
       }
     ]
   }

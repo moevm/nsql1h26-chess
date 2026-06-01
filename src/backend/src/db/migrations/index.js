@@ -5,8 +5,10 @@ const migrations = [
   require('./002-stats-int'),
   require('./003-player-roles'),
   require('./004-circular-chess'),
+  require('./005-bot-api-keys'),
   require('./006-cc-draw-status'),
   require('./007-cc-drop-threefold'),
+  require('./008-drop-bot-api-url')
 ];
 
 async function runMigrations() {

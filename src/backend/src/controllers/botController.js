@@ -5,6 +5,11 @@ const list = handle(async (req, res) => res.json(await botService.listBots(req.q
 
 const getById = handle(async (req, res) => res.json(await botService.getBotById(req.params.id)));
 
+const me = handle(async (req, res) => {
+  const { api_key, ...safe } = req.bot;
+  res.json(safe);
+});
+
 const create = handle(async (req, res) =>
   res.status(201).json(await botService.createBot(req.body, req.user))
 );
@@ -15,4 +20,8 @@ const update = handle(async (req, res) =>
 
 const remove = handle(async (req, res) => res.json(await botService.deleteBot(req.params.id)));
 
-module.exports = { list, getById, create, update, remove };
+const regenerateKey = handle(async (req, res) =>
+  res.json(await botService.regenerateApiKey(req.params.id))
+);
+
+module.exports = { list, getById, me, create, update, remove, regenerateKey };
