@@ -1138,15 +1138,29 @@ async function renderGameCreate() {
 
   try {
     const participants = await api('/participants');
+    const players = participants.filter(p => p.type === 'player');
+    const bots = participants.filter(p => p.type === 'bot');
+    const me = players.find(p => p._id === state.user.id);
 
-    const playerOptions = participants
-        .filter(p => p.type === 'player')
-        .map(p => `<option value="${p._id}">${escapeHtml(p.display_name)}</option>`)
-        .join('');
+    if (!me) {
+      main.innerHTML = `
+        <div class="page-title">
+          <span><a onclick="navigate('games')" style="cursor:pointer;color:var(--primary);text-decoration:none;">← Партии</a> / Новая партия</span>
+        </div>
+        <div class="empty-state"><p>Для вашего аккаунта не найден профиль игрока — создать партию нельзя.</p></div>`;
+      return;
+    }
 
-    const allOptions = participants
-        .map(p => `<option value="${p._id}">${escapeHtml(p.display_name)}</option>`)
+    const playerOpts = players
+        .filter(p => p._id !== state.user.id)
+        .map(p => `<option value="${p._id}" data-type="player">${escapeHtml(p.display_name)}</option>`)
         .join('');
+    const botOpts = bots
+        .map(p => `<option value="${p._id}" data-type="bot">${escapeHtml(p.display_name)}</option>`)
+        .join('');
+    const opponentOptions =
+        (playerOpts ? `<optgroup label="Игроки">${playerOpts}</optgroup>` : '') +
+        (botOpts ? `<optgroup label="Боты">${botOpts}</optgroup>` : '');
 
     main.innerHTML = `
       <div class="page-title">
@@ -1156,24 +1170,23 @@ async function renderGameCreate() {
         <h3 class="card-title">Создание партии</h3>
         <form onsubmit="handleCreateGame(event)">
           <div class="form-group">
-            <label>Режим</label>
-            <select class="form-control" id="gc-mode" onchange="updateGameCreatePlayers()" required>
-              <option value="hotseat">Игрок vs Игрок (hotseat)</option>
-              <option value="bot">Игрок vs Бот</option>
-            </select>
+            <label>Вы играете</label>
+            <input type="text" class="form-control" value="${escapeHtml(me.display_name)}" disabled>
+            <small style="color:var(--muted);">Партия создаётся от вашего имени — вы обязательно один из игроков.</small>
           </div>
           <div class="form-row">
             <div class="form-group">
-              <label>Игрок 1</label>
-              <select class="form-control" id="gc-player1" required>
-                ${playerOptions}
+              <label>Ваш цвет</label>
+              <select class="form-control" id="gc-color">
+                <option value="w">Белые</option>
+                <option value="b">Чёрные</option>
               </select>
             </div>
             <div class="form-group">
-              <label>Игрок 2</label>
-              <select class="form-control" id="gc-player2" required>
+              <label>Соперник</label>
+              <select class="form-control" id="gc-opponent" required>
                 <option value="">— Выберите —</option>
-                ${allOptions}
+                ${opponentOptions}
               </select>
             </div>
           </div>
@@ -1181,50 +1194,47 @@ async function renderGameCreate() {
             <label>Комментарий</label>
             <input type="text" class="form-control" id="gc-comment" placeholder="Необязательно">
           </div>
+          <small style="color:var(--muted);display:block;margin-bottom:12px;">С игроком — партия hotseat: ходы за обе стороны делаете вы на одном устройстве. С ботом — бот ходит сам через свой API.</small>
           <div class="form-actions">
-            <button type="submit" class="btn btn-primary" id="gc-btn">Создать партию</button>
+            <button type="submit" class="btn btn-primary" id="gc-btn">Создать и играть</button>
             <button type="button" class="btn btn-secondary" onclick="navigate('games')">Отмена</button>
           </div>
         </form>
       </div>`;
-
-    // Устанавливаем текущего пользователя как игрока 1
-    const p1Select = document.getElementById('gc-player1');
-    if (state.user) {
-      for (const opt of p1Select.options) {
-        if (opt.value === state.user.id) {
-          opt.selected = true;
-          break;
-        }
-      }
-    }
   } catch (err) {
     main.innerHTML = `<div class="empty-state"><p>Ошибка: ${escapeHtml(err.message)}</p></div>`;
   }
 }
 
-function updateGameCreatePlayers() {
-  // Можно расширить логику фильтрации при смене режима
-}
-
 async function handleCreateGame(e) {
   e.preventDefault();
   const btn = document.getElementById('gc-btn');
+
+  const color = document.getElementById('gc-color').value;
+  const opponentSelect = document.getElementById('gc-opponent');
+  const opponent = opponentSelect.value;
+  const comment = document.getElementById('gc-comment').value;
+
+  if (!opponent) {
+    showToast('Выберите соперника', 'error');
+    return;
+  }
+
+  const selectedOpt = opponentSelect.selectedOptions[0];
+  const opponentIsBot = !!selectedOpt && selectedOpt.dataset.type === 'bot';
+  const hotseat = !opponentIsBot;
+
+  const white_id = color === 'w' ? state.user.id : opponent;
+  const black_id = color === 'w' ? opponent : state.user.id;
+
   btn.disabled = true;
-
   try {
-    const game = await api('/games', {
+    const cc = await api('/cc/games', {
       method: 'POST',
-      body: JSON.stringify({
-        mode: document.getElementById('gc-mode').value,
-        player1_id: document.getElementById('gc-player1').value,
-        player2_id: document.getElementById('gc-player2').value,
-        comment: document.getElementById('gc-comment').value
-      })
+      body: JSON.stringify({ white_id, black_id, hotseat, comment })
     });
-
     showToast('Партия создана!', 'success');
-    navigate('game-detail', { id: game._id });
+    window.location.href = '/chess.html?game=' + cc._id;
   } catch (err) {
     showToast(err.message, 'error');
     btn.disabled = false;
@@ -2849,10 +2859,18 @@ function renderImportExport() {
 }
 
 async function handleExport() {
+  if (!state.user) {
+    showToast('Необходимо авторизоваться', 'error');
+    return;
+  }
   try {
     const res = await fetch(`${API_BASE}/export`, {
-      headers: state.token ? { 'Authorization': `Bearer ${state.token}` } : {}
+      headers: { 'Authorization': `Bearer ${state.token}` }
     });
+    if (res.status === 401) {
+      logout();
+      throw new Error('Сессия истекла, войдите заново');
+    }
     if (!res.ok) throw new Error('Ошибка экспорта');
     const blob = await res.blob();
     const url = URL.createObjectURL(blob);

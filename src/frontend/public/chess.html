@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Партия — Круговые шахматы</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="chess.css">
+</head>
+<body>
+<div id="app">
+    <header id="header">
+        <div class="header-left">
+            <h1 class="logo" onclick="window.location.href='/'">Круговые шахматы</h1>
+        </div>
+        <nav class="header-nav">
+            <a class="nav-btn" href="/">Главная</a>
+            <a class="nav-btn" href="/#games">Партии</a>
+        </nav>
+        <div class="header-right">
+            <div id="user-display" class="user-name"></div>
+            <a class="btn btn-outline btn-sm" href="/#games">К списку партий</a>
+        </div>
+    </header>
+
+    <main id="main-content">
+        <section id="game-view">
+            <div class="game-layout">
+                <div class="game-board-wrap">
+                    <div class="board-frame">
+                        <div id="board-host"></div>
+                        <div id="pause-overlay" class="pause-overlay hidden">
+                            <div class="pause-box">
+                                <div class="pause-title">Партия на паузе</div>
+                                <button class="btn btn-primary" id="btn-resume">Продолжить</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="status-bar" class="status-bar"></div>
+                    <div class="board-actions">
+                        <a class="btn btn-secondary" href="/#games">← К списку</a>
+                        <button class="btn btn-outline-dark" id="btn-pause">Пауза</button>
+                        <button class="btn btn-outline-dark" id="btn-edit">Изменить</button>
+                        <button class="btn btn-warning" id="btn-draw">Ничья</button>
+                        <button class="btn btn-danger" id="btn-resign">Сдаться</button>
+                        <button class="btn btn-outline-dark" id="btn-leave">Покинуть</button>
+                    </div>
+                    <div class="replay-controls" id="replay-controls">
+                        <button class="btn btn-outline-dark btn-sm" id="rp-first" title="В начало">⏮</button>
+                        <button class="btn btn-outline-dark btn-sm" id="rp-prev" title="Шаг назад">‹</button>
+                        <span class="replay-step-label">
+                            Ход
+                            <input type="number" id="rp-step" min="0" value="0" style="width:64px;">
+                            / <span id="rp-total">0</span>
+                        </span>
+                        <button class="btn btn-outline-dark btn-sm" id="rp-next" title="Шаг вперёд">›</button>
+                        <button class="btn btn-outline-dark btn-sm" id="rp-last" title="К текущей">⏭</button>
+                        <span class="replay-badge hidden" id="rp-badge">просмотр истории</span>
+                    </div>
+                </div>
+                <aside class="game-side">
+                    <div class="players-card">
+                        <div class="player-line"><span class="dot dot-white"></span><span id="white-name">—</span></div>
+                        <div class="player-line"><span class="dot dot-black"></span><span id="black-name">—</span></div>
+                    </div>
+                    <div class="game-dates">
+                        <div class="game-date-row">
+                            <span class="game-date-label">Начата:</span>
+                            <span class="game-date-value" id="game-created-at">—</span>
+                        </div>
+                        <div class="game-date-row hidden" id="game-ended-row">
+                            <span class="game-date-label">Завершена:</span>
+                            <span class="game-date-value" id="game-ended-at">—</span>
+                        </div>
+                    </div>
+                    <div id="game-comment" class="game-comment hidden">
+                        <div class="game-comment-label">Комментарий</div>
+                        <div class="game-comment-text" id="game-comment-text"></div>
+                    </div>
+                    <h4>Ходы</h4>
+                    <div id="move-list" class="move-list"></div>
+                </aside>
+            </div>
+
+            <dialog id="dlg-promo">
+                <h3>Превращение пешки</h3>
+                <div class="promo-options">
+                    <button class="btn btn-outline-dark" data-promo="Q">Ферзь</button>
+                    <button class="btn btn-outline-dark" data-promo="R">Ладья</button>
+                    <button class="btn btn-outline-dark" data-promo="B">Слон</button>
+                    <button class="btn btn-outline-dark" data-promo="N">Конь</button>
+                </div>
+            </dialog>
+        </section>
+    </main>
+
+    <div id="toast-container"></div>
+</div>
+
+<script src="/api/cc/lib.js"></script>
+<script src="chess.js"></script>
+</body>
+</html>
