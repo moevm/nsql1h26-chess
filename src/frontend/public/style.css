@@ -829,3 +829,86 @@ tr.clickable:hover {
 .moves-table .move-row.is-current-move td {
     font-weight: 600;
 }
+
+.stats-summary {
+    margin-bottom: 12px;
+    color: var(--text-light);
+    font-size: 0.9rem;
+}
+.chart-card {
+    background: var(--bg-card);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 16px;
+    margin-bottom: 24px;
+}
+.chart-scroll {
+    overflow-x: auto;
+}
+svg.stats-chart {
+    display: block;
+}
+.chart-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 14px;
+    margin-top: 12px;
+    font-size: 0.85rem;
+    color: var(--text);
+}
+.chart-legend-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+.chart-swatch {
+    width: 14px;
+    height: 14px;
+    border-radius: 3px;
+    display: inline-block;
+}
+.stats-table-title {
+    font-size: 0.95rem;
+    font-weight: 600;
+    margin-bottom: 8px;
+}
+.heatmap-wrap {
+    overflow-x: auto;
+}
+table.heatmap {
+    border-collapse: collapse;
+    width: auto;
+    min-width: 100%;
+}
+table.heatmap th,
+table.heatmap td {
+    border: 1px solid var(--border);
+    padding: 8px 12px;
+    text-align: center;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+table.heatmap thead th {
+    background: var(--bg);
+    font-weight: 600;
+}
+table.heatmap th.hm-corner {
+    text-align: right;
+    color: var(--text-light);
+    font-weight: 600;
+}
+table.heatmap th.hm-row {
+    text-align: right;
+    background: var(--bg);
+    font-weight: 600;
+}
+table.heatmap td.hm-total,
+table.heatmap th.hm-total {
+    background: var(--bg);
+    font-weight: 700;
+}
+table.heatmap tr.hm-foot td,
+table.heatmap tr.hm-foot th {
+    background: var(--bg);
+    font-weight: 700;
+}

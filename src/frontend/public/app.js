@@ -112,6 +112,7 @@ const PAGE_TITLES = {
   'bot-create': 'Новый бот',
   'bot-edit': 'Редактирование бота',
   'status-history': 'История статусов',
+  stats: 'Статистика',
   'import-export': 'Импорт/Экспорт'
 };
 
@@ -146,6 +147,7 @@ function parseHash(hash) {
     case 'register': return { page: 'register', params: {} };
     case 'profile': return { page: 'profile', params: {} };
     case 'import-export': return { page: 'import-export', params: {} };
+    case 'stats': return { page: 'stats', params: {} };
     case 'games': return { page: 'games', params: { query: queryString || '' } };
     case 'players': return { page: 'players', params: { query: queryString || '' } };
     case 'bots': return { page: 'bots', params: { query: queryString || '' } };
@@ -193,6 +195,7 @@ function navigate(page, params = {}, updateHash = true) {
     case 'player-edit': renderPlayerEdit(params.id); break;
     case 'game-edit': renderGameEdit(params.id); break;
     case 'import-export': renderImportExport(); break;
+    case 'stats': renderStats(); break;
     default: renderHome();
   }
 }
@@ -1239,6 +1242,310 @@ async function handleCreateGame(e) {
     showToast(err.message, 'error');
     btn.disabled = false;
   }
+}
+
+let statsSchema = null;
+
+function statsCurrentDataset() {
+  const key = document.getElementById('stats-dataset').value;
+  return statsSchema.datasets.find(d => d.key === key);
+}
+
+function statsDefaultAxes(axes) {
+  const num = axes.find(a => a.type === 'num');
+  const cat = axes.find(a => a.type === 'cat');
+  const x = (num || axes[0]).key;
+  const y = ((cat && cat.key !== x) ? cat : (axes.find(a => a.key !== x) || axes[0])).key;
+  return { x, y };
+}
+
+function statsAxisOptions(axes, selected) {
+  return axes.map(a =>
+    `<option value="${a.key}" ${a.key === selected ? 'selected' : ''}>${escapeHtml(a.label)}</option>`
+  ).join('');
+}
+
+function statsFilterFieldHTML(f) {
+  if (f.type === 'cat') {
+    const opts = (f.options || []).map(o => `<option value="${escapeHtml(o.value)}">${escapeHtml(o.label)}</option>`).join('');
+    return `<div class="filter-group">
+        <label>${escapeHtml(f.label)}</label>
+        <select id="flt-${f.key}"><option value="">Все</option>${opts}</select>
+      </div>`;
+  }
+  if (f.type === 'text') {
+    return `<div class="filter-group">
+        <label>${escapeHtml(f.label)}</label>
+        <input type="text" id="flt-${f.key}" placeholder="Подстрока...">
+      </div>`;
+  }
+  if (f.type === 'num') {
+    return `<div class="filter-group">
+        <label>${escapeHtml(f.label)}</label>
+        <div class="filter-range">
+          <input type="number" id="flt-${f.key}-min" placeholder="От">
+          <input type="number" id="flt-${f.key}-max" placeholder="До">
+        </div>
+      </div>`;
+  }
+  return `<div class="filter-group">
+      <label>${escapeHtml(f.label)}</label>
+      <div class="filter-range">
+        <input type="date" id="flt-${f.key}-from">
+        <input type="date" id="flt-${f.key}-to">
+      </div>
+    </div>`;
+}
+
+async function renderStats() {
+  const main = document.getElementById('main-content');
+
+  if (!statsSchema) {
+    try {
+      statsSchema = await api('/stats/schema');
+    } catch (err) {
+      main.innerHTML = `<div class="empty-state"><p>Не удалось загрузить параметры статистики: ${escapeHtml(err.message)}</p></div>`;
+      return;
+    }
+  }
+
+  const dsOptions = statsSchema.datasets.map(d =>
+    `<option value="${d.key}">${escapeHtml(d.label)}</option>`
+  ).join('');
+
+  main.innerHTML = `
+    <div class="page-title">
+      <span>Статистика</span>
+    </div>
+
+    <div class="filters-panel">
+      <div class="filter-group" style="max-width:280px;margin-bottom:16px;">
+        <label>Подмножество данных</label>
+        <select id="stats-dataset" onchange="onStatsDatasetChange()">${dsOptions}</select>
+      </div>
+      <div id="stats-controls"></div>
+    </div>
+
+    <div id="stats-result"></div>`;
+
+  renderStatsControls(statsSchema.datasets[0].key);
+}
+
+function onStatsDatasetChange() {
+  renderStatsControls(document.getElementById('stats-dataset').value);
+}
+
+function renderStatsControls(dsKey) {
+  const ds = statsSchema.datasets.find(d => d.key === dsKey);
+  const { x, y } = statsDefaultAxes(ds.axes);
+
+  const controls = document.getElementById('stats-controls');
+  controls.innerHTML = `
+    <h3 style="margin:0 0 8px;font-size:0.95rem;">Фильтр выборки</h3>
+    <div class="filters-grid">
+      ${ds.filters.map(statsFilterFieldHTML).join('')}
+    </div>
+
+    <h3 style="margin:18px 0 8px;font-size:0.95rem;">Оси диаграммы</h3>
+    <div class="filters-grid">
+      <div class="filter-group">
+        <label>Ось X</label>
+        <select id="stats-x">${statsAxisOptions(ds.axes, x)}</select>
+      </div>
+      <div class="filter-group">
+        <label>Размер интервала X <small>(для числовых)</small></label>
+        <input type="number" id="stats-x-bucket" placeholder="авто" min="1">
+      </div>
+      <div class="filter-group">
+        <label>Ось Y</label>
+        <select id="stats-y">${statsAxisOptions(ds.axes, y)}</select>
+      </div>
+      <div class="filter-group">
+        <label>Размер интервала Y <small>(для числовых)</small></label>
+        <input type="number" id="stats-y-bucket" placeholder="авто" min="1">
+      </div>
+    </div>
+
+    <div class="filters-actions">
+      <button class="btn btn-primary btn-sm" onclick="buildDistribution()">Построить</button>
+      <button class="btn btn-secondary btn-sm" onclick="renderStatsControls(statsCurrentDataset().key)">Сбросить</button>
+    </div>`;
+
+  buildDistribution();
+}
+
+async function buildDistribution() {
+  const container = document.getElementById('stats-result');
+  if (!container) return;
+  container.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+
+  const ds = statsCurrentDataset();
+  const params = new URLSearchParams();
+  params.set('dataset', ds.key);
+  params.set('x', document.getElementById('stats-x').value);
+  params.set('y', document.getElementById('stats-y').value);
+
+  const setIf = (param, id) => {
+    const el = document.getElementById(id);
+    if (el && el.value !== '') params.set(param, el.value);
+  };
+  setIf('x_bucket', 'stats-x-bucket');
+  setIf('y_bucket', 'stats-y-bucket');
+
+  ds.filters.forEach(f => {
+    if (f.type === 'cat' || f.type === 'text') {
+      setIf(`flt_${f.key}`, `flt-${f.key}`);
+    } else if (f.type === 'num') {
+      setIf(`flt_${f.key}_min`, `flt-${f.key}-min`);
+      setIf(`flt_${f.key}_max`, `flt-${f.key}-max`);
+    } else if (f.type === 'date') {
+      setIf(`flt_${f.key}_from`, `flt-${f.key}-from`);
+      setIf(`flt_${f.key}_to`, `flt-${f.key}-to`);
+    }
+  });
+
+  try {
+    const dist = await api(`/stats/distribution?${params}`);
+    container.innerHTML = renderBarChart(dist) + renderHeatmap(dist);
+  } catch (err) {
+    container.innerHTML = `<div class="empty-state"><p>Ошибка: ${escapeHtml(err.message)}</p></div>`;
+  }
+}
+
+const STATS_PALETTE = [
+  '#2563eb', '#16a34a', '#d97706', '#dc2626', '#7c3aed',
+  '#0891b2', '#db2777', '#65a30d', '#ea580c', '#4f46e5'
+];
+
+function statsNiceMax(m) {
+  if (m <= 5) return 5;
+  const pow = Math.pow(10, Math.floor(Math.log10(m)));
+  const n = m / pow;
+  const nice = n <= 1 ? 1 : n <= 2 ? 2 : n <= 5 ? 5 : 10;
+  return nice * pow;
+}
+
+function renderBarChart(dist) {
+  if (!dist.total) return '';
+
+  const xs = dist.x.values;
+  const ys = dist.y.values;
+  const valueAt = (xk, yk) => dist.cells[`${xk}||${yk}`] || 0;
+
+  let max = 0;
+  xs.forEach(xv => ys.forEach(yv => { const c = valueAt(xv.key, yv.key); if (c > max) max = c; }));
+  const scaleMax = statsNiceMax(max);
+
+  const mL = 48, mR = 16, mT = 16, mB = 78;
+  const plotH = 280;
+  const barW = ys.length > 6 ? 12 : 18;
+  const groupInner = Math.max(barW, ys.length * barW);
+  const groupGap = 28;
+  const plotW = xs.length * (groupInner + groupGap) + groupGap;
+  const W = mL + plotW + mR;
+  const H = mT + plotH + mB;
+  const yToPx = (v) => mT + plotH - (v / scaleMax) * plotH;
+
+  let svg = `<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" class="stats-chart" role="img">`;
+
+  const TICKS = 5;
+  for (let i = 0; i <= TICKS; i++) {
+    const v = (scaleMax / TICKS) * i;
+    const y = yToPx(v);
+    svg += `<line x1="${mL}" y1="${y.toFixed(1)}" x2="${(mL + plotW).toFixed(1)}" y2="${y.toFixed(1)}" stroke="var(--border)" stroke-width="1"/>`;
+    svg += `<text x="${mL - 8}" y="${(y + 4).toFixed(1)}" text-anchor="end" font-size="11" fill="var(--text-light)">${Math.round(v)}</text>`;
+  }
+
+  xs.forEach((xv, gi) => {
+    const gx = mL + groupGap + gi * (groupInner + groupGap);
+    ys.forEach((yv, si) => {
+      const c = valueAt(xv.key, yv.key);
+      const bx = gx + si * barW;
+      const by = yToPx(c);
+      const bh = mT + plotH - by;
+      const color = STATS_PALETTE[si % STATS_PALETTE.length];
+      if (c > 0) {
+        svg += `<rect x="${bx.toFixed(1)}" y="${by.toFixed(1)}" width="${barW - 2}" height="${bh.toFixed(1)}" fill="${color}"><title>${escapeHtml(xv.label)} / ${escapeHtml(yv.label)}: ${c}</title></rect>`;
+      }
+    });
+    const cx = gx + groupInner / 2;
+    const ty = mT + plotH + 14;
+    svg += `<text x="${cx.toFixed(1)}" y="${ty}" text-anchor="end" font-size="11" fill="var(--text)" transform="rotate(-35 ${cx.toFixed(1)} ${ty})">${escapeHtml(xv.label)}</text>`;
+  });
+
+  svg += `<line x1="${mL}" y1="${mT + plotH}" x2="${(mL + plotW).toFixed(1)}" y2="${mT + plotH}" stroke="var(--text-light)" stroke-width="1"/>`;
+  svg += '</svg>';
+
+  const legend = ys.map((yv, si) => `
+    <span class="chart-legend-item">
+      <span class="chart-swatch" style="background:${STATS_PALETTE[si % STATS_PALETTE.length]}"></span>
+      ${escapeHtml(yv.label)}
+    </span>`).join('');
+
+  return `
+    <div class="stats-summary">
+      ${escapeHtml(dist.dataset.label)} в выборке: <strong>${dist.total}</strong> &middot;
+      ось X — <strong>${escapeHtml(dist.x.label)}</strong>${dist.x.type === 'num' ? ` (интервал ${dist.x.bucket})` : ''},
+      цвет (серии) — <strong>${escapeHtml(dist.y.label)}</strong>${dist.y.type === 'num' ? ` (интервал ${dist.y.bucket})` : ''},
+      высота столбика — количество.
+    </div>
+    <div class="chart-card">
+      <div class="chart-scroll">${svg}</div>
+      <div class="chart-legend">${legend}</div>
+    </div>`;
+}
+
+function renderHeatmap(dist) {
+  if (!dist.total) {
+    return '<div class="empty-state"><p>Под заданный фильтр не попала ни одна запись.</p></div>';
+  }
+
+  const xs = dist.x.values;
+  const ys = dist.y.values;
+
+  const colTotals = xs.map(() => 0);
+  const rowTotals = ys.map(() => 0);
+  let max = 0;
+  ys.forEach((yv, ri) => {
+    xs.forEach((xv, ci) => {
+      const c = dist.cells[`${xv.key}||${yv.key}`] || 0;
+      rowTotals[ri] += c;
+      colTotals[ci] += c;
+      if (c > max) max = c;
+    });
+  });
+
+  const cellColor = (c) => {
+    if (!c) return '';
+    const alpha = 0.12 + 0.78 * (c / max);
+    const color = alpha > 0.55 ? '#fff' : 'var(--text)';
+    return `background: rgba(37, 99, 235, ${alpha.toFixed(3)}); color: ${color};`;
+  };
+
+  let html = `
+    <h3 class="stats-table-title">Таблица значений</h3>
+    <div class="table-container heatmap-wrap">
+      <table class="heatmap">
+        <thead>
+          <tr>
+            <th class="hm-corner">${escapeHtml(dist.y.label)} \\ ${escapeHtml(dist.x.label)}</th>`;
+  xs.forEach(xv => { html += `<th>${escapeHtml(xv.label)}</th>`; });
+  html += '<th class="hm-total">Итого</th></tr></thead><tbody>';
+
+  ys.forEach((yv, ri) => {
+    html += `<tr><th class="hm-row">${escapeHtml(yv.label)}</th>`;
+    xs.forEach((xv) => {
+      const c = dist.cells[`${xv.key}||${yv.key}`] || 0;
+      html += `<td style="${cellColor(c)}">${c || ''}</td>`;
+    });
+    html += `<td class="hm-total">${rowTotals[ri]}</td></tr>`;
+  });
+
+  html += '<tr class="hm-foot"><th class="hm-row">Итого</th>';
+  colTotals.forEach(t => { html += `<td>${t}</td>`; });
+  html += `<td class="hm-total">${dist.total}</td></tr>`;
+  html += '</tbody></table></div>';
+  return html;
 }
 
 // =====================
