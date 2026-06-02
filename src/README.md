@@ -40,18 +40,10 @@ docker compose up -d --build
 
 ### 2. Запустить бота в отдельном терминале
 
-Вариант A — напрямую (Python 3.12, без зависимостей):
+Через docker compose (профиль `bots`):
 
 ```bash
-python3 bot.py --base-url http://localhost:3000 --bot-key <API_KEY>
-```
-
-Можно указать `--interval 5` — период опроса в секундах.
-
-Вариант Б — через docker compose (профиль `bots`):
-
-```bash
-BOT_KEY=<API_KEY> docker compose --profile bots up -d --build bot
+BOT_KEY=<API_KEY> docker compose --profile bots up --build bot
 ```
 
 Контейнер бота ходит на backend по внутреннему адресу `http://backend:3000`, ключ берётся из `BOT_KEY`, период — из `BOT_INTERVAL` (по умолчанию 5 c).
